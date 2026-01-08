@@ -27,6 +27,7 @@ export function OTPVerification({ phoneNumber, onVerified }: OTPVerificationProp
         onError: (error) => {
             setError(error.message)
             setOtpSent(false)
+            setIsVerifying(false)
         },
         onSuccess: (data) => {
             setOtpSent(true)

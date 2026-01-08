@@ -5,7 +5,7 @@ const BACKEND_URL = process.env.BACKEND_URL;
 export async function POST(r: NextRequest){
     const body = await r.json();
 
-    const res =  await fetch(`${BACKEND_URL}/api/v1/appointment/create`,{
+    const res =  await fetch(`${BACKEND_URL}/api/v1/appointments/create`,{
         method: "POST",
         headers: {
             "Content-Type": "application/json",

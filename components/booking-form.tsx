@@ -57,14 +57,15 @@ export function BookingForm({ service }: BookingFormProps) {
             setIsSubmitting(false)
         },
         onError: () => {
-           setBookingSuccess(false)
+            setBookingSuccess(false)
+            setIsSubmitting(false)
         }
     })
 
     const addBooking = (booking: BookingFormValues) => {
         const bookingRequest: CreateAppointmentRequest = {
             serviceId: service.id,
-            appointmentTime: `${booking.date}T${booking.time}`,
+            appointmentTime: `${booking.date} ${booking.time}`,
             notes: "",
             userId: null,
             organizationId: service.organizationId
