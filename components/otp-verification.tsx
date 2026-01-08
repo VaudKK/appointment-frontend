@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AlertCircle, Loader2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {useMutation} from "@tanstack/react-query";
+import {sendOTP, verifyOTP} from "@/lib/api/booking";
 
 interface OTPVerificationProps {
     phoneNumber: string
@@ -12,49 +14,68 @@ interface OTPVerificationProps {
 }
 
 export function OTPVerification({ phoneNumber, onVerified }: OTPVerificationProps) {
-    const [otp, setOtp] = useState("")
-    const [isVerifying, setIsVerifying] = useState(false)
-    const [error, setError] = useState("")
-    const [timeLeft, setTimeLeft] = useState(300) // 5 minutes
-    const [isExpired, setIsExpired] = useState(false)
+    const [otp, setOtp] = useState("");
+    const [otpSent,setOtpSent] = useState(false);
+    const [sessionId, setSessionId] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [error, setError] = useState("");
+    const [timeLeft, setTimeLeft] = useState(300);// 5 minutes
+    const [isExpired, setIsExpired] = useState(false);
 
-    // Simulate OTP sending
-    const mockOTP = "123456"
+    const sendOtpMutation = useMutation({
+        mutationFn: (msisdn: string) => sendOTP(msisdn),
+        onError: (error) => {
+            setError(error.message)
+            setOtpSent(false)
+        },
+        onSuccess: (data) => {
+            setOtpSent(true)
+            setSessionId(data.sessionId)
+        }
+    })
+
+    const sendOtp = () => {
+        sendOtpMutation.mutate(phoneNumber);
+    };
+
 
     useEffect(() => {
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    setIsExpired(true)
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
+        if (!otpSent){
+            sendOtp();
+        }
 
-        return () => clearInterval(timer)
-    }, [])
+        if (otpSent){
+            const timer = setInterval(() => {
+                setTimeLeft((prev) => {
+                    if (prev <= 1) {
+                        setIsExpired(true)
+                        return 0
+                    }
+                    return prev - 1
+                })
+            }, 1000)
+
+            return () => clearInterval(timer)
+        }
+    }, [otpSent])
+
+
+    const verifyOtpMutation = useMutation({
+        mutationFn: () => verifyOTP(sessionId,otp),
+        onError: (error) => {
+            setError(error.message)
+            setOtpSent(false)
+        },
+        onSuccess: () => {
+            setIsVerifying(false)
+            onVerified()
+        }
+    })
 
     const handleVerify = async () => {
         setError("")
-
-        if (otp.length !== 6) {
-            setError("Please enter a 6-digit OTP")
-            return
-        }
-
         setIsVerifying(true)
-
-        // Simulate OTP verification
-        setTimeout(() => {
-            if (otp === mockOTP) {
-                setIsVerifying(false)
-                onVerified()
-            } else {
-                setError("Invalid OTP. Please try again. (Hint: use 123456)")
-                setIsVerifying(false)
-            }
-        }, 1000)
+        verifyOtpMutation.mutate()
     }
 
     const formatTime = (seconds: number) => {
@@ -68,7 +89,7 @@ export function OTPVerification({ phoneNumber, onVerified }: OTPVerificationProp
             <div className="text-center">
                 <h3 className="text-lg font-semibold mb-2">Verify Your Phone Number</h3>
                 <p className="text-sm text-muted-foreground">
-                    We've sent a 6-digit OTP to <span className="font-medium">{phoneNumber}</span>
+                    We&apos;ve sent a 6-digit OTP to <span className="font-medium">{phoneNumber}</span>
                 </p>
             </div>
 
@@ -116,10 +137,6 @@ export function OTPVerification({ phoneNumber, onVerified }: OTPVerificationProp
                     "Verify & Complete Booking"
                 )}
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-                For testing: use OTP <span className="font-mono font-semibold">123456</span>
-            </p>
         </div>
     )
 }

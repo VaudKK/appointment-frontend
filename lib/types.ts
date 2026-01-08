@@ -19,3 +19,15 @@ export interface PaginatedResponse<T> {
     totalElements: number
     totalPages: number
 }
+
+export interface CreateAppointmentRequest {
+    serviceId: string
+    userId: string | null
+    appointmentTime: string
+    notes: string
+    organizationId: string
+}
+
+export interface CreateAppointmentResponse{
+    appointmentId: string
+}

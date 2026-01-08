@@ -10,7 +10,9 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { OTPVerification } from "@/components/otp-verification"
 import { AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {Service} from "@/lib/types";
+import {CreateAppointmentRequest, Service} from "@/lib/types";
+import {useMutation} from "@tanstack/react-query";
+import {createBooking} from "@/lib/api/booking";
 
 
 interface BookingFormProps {
@@ -48,23 +50,32 @@ export function BookingForm({ service }: BookingFormProps) {
         },
     })
 
+    const bookingMutation = useMutation({
+        mutationFn: (req: CreateAppointmentRequest) => createBooking(req),
+        onSuccess: () => {
+            setBookingSuccess(true)
+            setIsSubmitting(false)
+        },
+        onError: () => {
+           setBookingSuccess(false)
+        }
+    })
+
+    const addBooking = (booking: BookingFormValues) => {
+        const bookingRequest: CreateAppointmentRequest = {
+            serviceId: service.id,
+            appointmentTime: `${booking.date}T${booking.time}`,
+            notes: "",
+            userId: null,
+            organizationId: service.organizationId
+        }
+        bookingMutation.mutate(bookingRequest)
+    }
+
     const validateDateTimeAvailability = (date: string, time: string): boolean => {
-        if (!date || !time) return true
+        if (!date || !time) return false
 
         const selectedDateTime = new Date(`${date}T${time}`)
-        const now = new Date()
-
-        // Allow booking at least 1 hour from now
-        const minDateTime = new Date(now.getTime() + 60 * 60 * 1000)
-
-        if (selectedDateTime < minDateTime) {
-            return false
-        }
-
-        // Service must be available
-        if (service.available) {
-            return false
-        }
 
         // Check if it's within business hours (8 AM to 6 PM)
         const hours = selectedDateTime.getHours()
@@ -77,27 +88,22 @@ export function BookingForm({ service }: BookingFormProps) {
 
     const onSubmit = async (values: BookingFormValues) => {
         // Validate date/time availability
-        // if (!validateDateTimeAvailability(values.date, values.time)) {
-        //     form.setError("time", {
-        //         type: "manual",
-        //         message: "Selected time is not available. Services operate 8 AM - 6 PM with at least 1 hour advance booking.",
-        //     })
-        //     return
-        // }
+        if (!validateDateTimeAvailability(values.date, values.time)) {
+            form.setError("time", {
+                type: "manual",
+                message: "Selected time is not available. Services operate 8 AM - 6 PM with at least 1 hour advance booking.",
+            })
+            return
+        }
 
         setIsSubmitting(true)
         setPhoneNumber(values.phoneNumber)
-
-        // Simulate OTP sending
-        setTimeout(() => {
-            setShowOTP(true)
-            setIsSubmitting(false)
-        }, 1000)
+        setShowOTP(true)
     }
 
     const handleOTPVerified = () => {
         setShowOTP(false)
-        setBookingSuccess(true)
+        addBooking(form.getValues())
     }
 
     if (bookingSuccess) {
@@ -167,7 +173,7 @@ export function BookingForm({ service }: BookingFormProps) {
                             <FormControl>
                                 <Input placeholder="0712345678 or +254712345678" {...field} />
                             </FormControl>
-                            <FormDescription>We'll use this to send you the OTP for verification</FormDescription>
+                            <FormDescription>We&apos;ll use this to send you the OTP for verification</FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -183,6 +189,7 @@ export function BookingForm({ service }: BookingFormProps) {
                                 <input
                                     type="date"
                                     {...field}
+                                    defaultValue={new Date().toISOString().split("T")[0]}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                                 <FormDescription>Select a date from today onwards</FormDescription>
@@ -200,6 +207,7 @@ export function BookingForm({ service }: BookingFormProps) {
                                 <input
                                     type="time"
                                     {...field}
+                                    step={900}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 />
                                 <FormDescription>Business hours: 8 AM - 6 PM</FormDescription>
