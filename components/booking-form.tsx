@@ -10,31 +10,27 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { OTPVerification } from "@/components/otp-verification"
 import { AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {CreateAppointmentRequest, Service} from "@/lib/types";
+import {CreateAppointmentRequest, Service, TimeSlot} from "@/lib/types";
 import {useMutation} from "@tanstack/react-query";
 import {createBooking} from "@/lib/api/booking";
+import TextAreaWithCount from "@/components/text-area-with-count";
 
 
 interface BookingFormProps {
     service: Service
+    timeSlot: TimeSlot
     onSuccess?: () => void
 }
 
 const bookingSchema = z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters"),
     phoneNumber: z.string().regex(/^(\+254|0)[0-9]{9}$/, "Please enter a valid Kenyan phone number (e.g., 0712345678)"),
-    date: z.string().refine((date) => {
-        const selectedDate = new Date(date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        return selectedDate >= today
-    }, "Please select a date from today onwards"),
-    time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Please enter a valid time"),
+    notes: z.string()
 })
 
 type BookingFormValues = z.infer<typeof bookingSchema>
 
-export function BookingForm({ service }: BookingFormProps) {
+export function BookingForm({ service,timeSlot }: BookingFormProps) {
     const [showOTP, setShowOTP] = useState(false)
     const [phoneNumber, setPhoneNumber] = useState("")
     const [bookingSuccess, setBookingSuccess] = useState(false)
@@ -45,8 +41,7 @@ export function BookingForm({ service }: BookingFormProps) {
         defaultValues: {
             fullName: "",
             phoneNumber: "",
-            date: "",
-            time: "",
+            notes: "",
         },
     })
 
@@ -65,38 +60,16 @@ export function BookingForm({ service }: BookingFormProps) {
     const addBooking = (booking: BookingFormValues) => {
         const bookingRequest: CreateAppointmentRequest = {
             serviceId: service.id,
-            appointmentTime: `${booking.date} ${booking.time}`,
-            notes: "",
+            notes: booking.notes,
             userId: null,
-            organizationId: service.organizationId
+            organizationId: service.organizationId,
+            slotId: timeSlot.slotId
         }
         bookingMutation.mutate(bookingRequest)
     }
 
-    const validateDateTimeAvailability = (date: string, time: string): boolean => {
-        if (!date || !time) return false
-
-        const selectedDateTime = new Date(`${date}T${time}`)
-
-        // Check if it's within business hours (8 AM to 6 PM)
-        const hours = selectedDateTime.getHours()
-        if (hours < 8 || hours >= 18) {
-            return false
-        }
-
-        return true
-    }
 
     const onSubmit = async (values: BookingFormValues) => {
-        // Validate date/time availability
-        if (!validateDateTimeAvailability(values.date, values.time)) {
-            form.setError("time", {
-                type: "manual",
-                message: "Selected time is not available. Services operate 8 AM - 6 PM with at least 1 hour advance booking.",
-            })
-            return
-        }
-
         setIsSubmitting(true)
         setPhoneNumber(values.phoneNumber)
         setShowOTP(true)
@@ -121,9 +94,6 @@ export function BookingForm({ service }: BookingFormProps) {
                     </p>
                     <p className="text-sm mb-2">
                         <span className="font-semibold">Location:</span> {service.location}
-                    </p>
-                    <p className="text-sm mb-2">
-                        <span className="font-semibold">Date & Time:</span> {form.getValues("date")} at {form.getValues("time")}
                     </p>
                     <p className="text-sm">
                         <span className="font-semibold">Total Amount:</span> KSh{" "}
@@ -180,43 +150,17 @@ export function BookingForm({ service }: BookingFormProps) {
                     )}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="date"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Date</FormLabel>
-                                <input
-                                    type="date"
-                                    {...field}
-                                    defaultValue={new Date().toISOString().split("T")[0]}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                <FormDescription>Select a date from today onwards</FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <FormField
-                        control={form.control}
-                        name="time"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Time</FormLabel>
-                                <input
-                                    type="time"
-                                    {...field}
-                                    step={900}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                <FormDescription>Business hours: 8 AM - 6 PM</FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
+                <FormField control={form.control}
+                           name={"notes"}
+                           render={({ field }) => (
+                               <FormItem>
+                                   <FormControl>
+                                       <TextAreaWithCount maxLength={300} {...field}/>
+                                   </FormControl>
+                                   <FormMessage />
+                               </FormItem>
+                           )}
+                />
 
                 {/*{service.requiresDownPayment && (*/}
                 {/*    <Alert>*/}

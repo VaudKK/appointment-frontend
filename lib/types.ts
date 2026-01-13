@@ -23,11 +23,20 @@ export interface PaginatedResponse<T> {
 export interface CreateAppointmentRequest {
     serviceId: string
     userId: string | null
-    appointmentTime: string
     notes: string
     organizationId: string
+    slotId: string
 }
 
 export interface CreateAppointmentResponse{
     appointmentId: string
+}
+
+export interface TimeSlot {
+    slotId: string
+    startTime: string
+    endTime: string
+    bufferTime: number
+    duration: number
+    slotsAvailable: number
 }

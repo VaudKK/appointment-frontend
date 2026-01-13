@@ -2,9 +2,10 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Clock, Calendar } from "lucide-react"
-import {Service} from "@/lib/types";
+import {Service, TimeSlot} from "@/lib/types";
 import {BookingDialog} from "@/components/booking-dialog";
 import {useState} from "react";
+import TimeSlotDialog from "@/components/time_slot_dialog";
 
 interface ServiceCardProps {
     service: Service
@@ -12,10 +13,17 @@ interface ServiceCardProps {
 
 export function ServiceCard({ service }: ServiceCardProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isBookingDialogOpen,setIsBookingDialogOpen] = useState(false)
     const isAvailable = service.available;
+    const [timeSlot,setTimeSlot] = useState<TimeSlot>();
 
     const handleBooking = () => {
         setIsDialogOpen(true)
+    }
+
+    const handleSlotSelected = (slot: TimeSlot) => {
+        setTimeSlot(slot)
+        setIsBookingDialogOpen(true)
     }
 
     return (
@@ -51,6 +59,10 @@ export function ServiceCard({ service }: ServiceCardProps) {
                         <span>{service.duration} mins</span>
                     </div>
 
+                    <div className={"flex items-center gap-2 text-sm text-muted-foreground"}>
+                        <span>{service.description}</span>
+                    </div>
+
                     {/*{service.requiresDownPayment && (*/}
                     {/*    <div className="flex items-center gap-2 text-sm text-primary">*/}
                     {/*        <CreditCard className="h-4 w-4 flex-shrink-0" />*/}
@@ -67,7 +79,16 @@ export function ServiceCard({ service }: ServiceCardProps) {
                 </CardFooter>
             </Card>
 
-            <BookingDialog service={service} open={isDialogOpen} onOpenChange={setIsDialogOpen} />
+            <TimeSlotDialog
+                isOpen={isDialogOpen}
+                onOpenChange={setIsDialogOpen}
+                service={service}
+                onSlotSelected={handleSlotSelected}
+            />
+
+            {timeSlot != null &&
+                <BookingDialog service={service} timeSlot={timeSlot} open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen} />}
+
         </>
     )
 }
