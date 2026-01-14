@@ -59,6 +59,7 @@ export function BookingForm({ service,timeSlot }: BookingFormProps) {
 
     const addBooking = (booking: BookingFormValues) => {
         const bookingRequest: CreateAppointmentRequest = {
+            customerName: booking.fullName,
             serviceId: service.id,
             notes: booking.notes,
             userId: null,
@@ -166,7 +167,7 @@ export function BookingForm({ service,timeSlot }: BookingFormProps) {
                 {/*    <Alert>*/}
                 {/*        <AlertCircle className="h-4 w-4" />*/}
                 {/*        <AlertDescription>*/}
-                {/*            A down payment of KSh {(service.price * 0.5).toLocaleString()} (50%) is required to confirm this booking.*/}
+                {/*            A down payment of KSh {(service.price * 0.5).toLocaleString()} (50%) is required to confirm this bookings.*/}
                 {/*        </AlertDescription>*/}
                 {/*    </Alert>*/}
                 {/*)}*/}

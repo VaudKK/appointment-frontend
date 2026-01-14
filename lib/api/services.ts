@@ -1,6 +1,11 @@
 "use server"
 
-import {PaginatedResponse, Service, TimeSlot} from "@/lib/types";
+import {
+    CreateServiceRequest, CreateServiceResponse,
+    PaginatedResponse,
+    Service,
+    TimeSlot
+} from "@/lib/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
 
@@ -36,6 +41,22 @@ export async function getAvailableSlots(serviceId: string, dateSelected: Date): 
 
     if (!res.ok) {
         throw new Error("Failed to fetch slots");
+    }
+
+    return await res.json();
+}
+
+export async function createService(newService: CreateServiceRequest): Promise<CreateServiceResponse> {
+    const res = await fetch(`${baseUrl}/api/admin/services/create`,{
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newService)
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to create service");
     }
 
     return await res.json();

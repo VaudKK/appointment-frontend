@@ -23,12 +23,12 @@ export function Navbar() {
                         <Link href="/services" className="text-sm font-medium hover:text-primary transition-colors">
                             Services
                         </Link>
-                        <div className="flex items-center gap-3 ml-4">
-                            <Button variant="ghost" size="sm">
-                                Log In
-                            </Button>
-                            <Button size="sm">Sign Up</Button>
-                        </div>
+                        {/*<div className="flex items-center gap-3 ml-4">*/}
+                        {/*    <Button variant="ghost" size="sm">*/}
+                        {/*        Log In*/}
+                        {/*    </Button>*/}
+                        {/*    <Button size="sm">Sign Up</Button>*/}
+                        {/*</div>*/}
                     </nav>
 
                     {/* Mobile Navigation */}

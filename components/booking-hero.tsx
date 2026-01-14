@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, Users } from "lucide-react"
+import { Calendar, Clock } from "lucide-react"
+import Image from "next/image";
 
 export function BookingHero() {
     return (
@@ -28,7 +29,7 @@ export function BookingHero() {
                         <div className="flex flex-col sm:flex-row gap-4">
                             <Button size="lg" className="text-lg px-8 h-14 shadow-lg hover:shadow-xl transition-shadow">
                                 <Calendar className="mr-2 h-5 w-5" />
-                                Show Available Bookings
+                                Book Now
                             </Button>
                         </div>
 
@@ -52,7 +53,14 @@ export function BookingHero() {
                     {/* Right Visual */}
                     <div className="relative">
                         <div className="relative rounded-2xl overflow-hidden">
-                            <img src="/hero-image.jpg" alt="Booking Interface" className="w-full h-auto" />
+                            <Image
+                                src="/hero-image.jpg" 
+                                alt="Booking Interface" 
+                                width={800} 
+                                height={600}
+                                className="w-full h-auto" 
+                                priority
+                            />
                         </div>
                     </div>
                 </div>

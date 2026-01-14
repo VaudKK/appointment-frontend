@@ -1,7 +1,12 @@
 "use server"
 
 
-import {CreateAppointmentRequest, CreateAppointmentResponse} from "@/lib/types";
+import {
+    Appointment,
+    CreateAppointmentRequest,
+    CreateAppointmentResponse,
+    PaginatedResponse,
+} from "@/lib/types";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
 
@@ -52,6 +57,21 @@ export async function verifyOTP(sessionId: string, otp: string): Promise<{succes
         const errorResponse = await res.json()
         console.log(errorResponse)
         throw new Error("Failed to verify otp");
+    }
+
+    return await res.json();
+}
+
+export async function getOrganizationBookings(organizationId: string, page: number, size: number): Promise<PaginatedResponse<Appointment>> {
+    const res = await fetch(`${baseUrl}/api/admin/bookings/${organizationId}?page=${page}&size=${size}`,{
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        }
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch services");
     }
 
     return await res.json();
