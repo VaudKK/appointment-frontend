@@ -26,8 +26,8 @@ export async function createBooking(booking: CreateAppointmentRequest): Promise<
     return await res.json();
 }
 
-export async function sendOTP(phoneNumber: string): Promise<{sessionId: string}>{
-    const res = await fetch(`${baseUrl}/api/otp/send`,{
+export async function sendOTP(phoneNumber: string,channel: string): Promise<{sessionId: string}>{
+    const res = await fetch(`${baseUrl}/api/otp/send?channel=${channel}`,{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -56,7 +56,7 @@ export async function verifyOTP(sessionId: string, otp: string): Promise<{succes
     if (!res.ok) {
         const errorResponse = await res.json()
         console.log(errorResponse)
-        throw new Error("Failed to verify otp");
+        throw new Error(errorResponse.error);
     }
 
     return await res.json();

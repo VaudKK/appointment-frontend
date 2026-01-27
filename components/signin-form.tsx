@@ -61,7 +61,7 @@ export default function SignInForm() {
             const { data, error } = await authClient.signIn.email({
                 email,
                 password,
-                callbackURL: "/admin/dashboard",
+                callbackURL: "/admin/dashboard/bookings",
                 rememberMe: false
             }, {
                 //callbacks
@@ -121,7 +121,7 @@ export default function SignInForm() {
                       <FormControl>
                         <Input 
                           type="password" 
-                          placeholder="Create a password" 
+                          placeholder="Enter your password"
                           {...field} 
                         />
                       </FormControl>

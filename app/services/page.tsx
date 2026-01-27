@@ -9,6 +9,7 @@ import {PaginatedResponse, Service} from "@/lib/types";
 import {Button} from "@/components/ui/button";
 import {useQuery} from "@tanstack/react-query";
 import {getOrganizationServices} from "@/lib/api/services";
+import {Navbar} from "@/components/nav-bar";
 
 
 const ServicesPage = ({ organizationId = "1" }: { organizationId: string }) => {
@@ -48,6 +49,7 @@ const ServicesPage = ({ organizationId = "1" }: { organizationId: string }) => {
 
     return (
         <div className="min-h-screen bg-background">
+            <Navbar/>
             <main className="container mx-auto px-4 py-12">
                 <div className="space-y-8">
                     {/* Header */}

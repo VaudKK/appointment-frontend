@@ -23,7 +23,7 @@ export function OTPVerification({ phoneNumber, onVerified }: OTPVerificationProp
     const [isExpired, setIsExpired] = useState(false);
 
     const sendOtpMutation = useMutation({
-        mutationFn: (msisdn: string) => sendOTP(msisdn),
+        mutationFn: (msisdn: string) => sendOTP(msisdn,"sms"),
         onError: (error) => {
             setError(error.message)
             setOtpSent(false)

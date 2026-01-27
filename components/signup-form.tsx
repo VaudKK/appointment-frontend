@@ -68,6 +68,11 @@ export default function SignupForm() {
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showOtp, setShowOtp] = useState(false)
+    const [formData,setFormData] = useState<SignupFormValues>({
+        email: "",
+        password: "",
+        username: "",
+    })
 
     const handleSignUp = async (values: SignupFormValues) => {
 
@@ -80,7 +85,7 @@ export default function SignupForm() {
                 email,
                 name,
                 password,
-                callbackURL: "/admin/dashboard",
+                callbackURL: "/admin/me/signin",
             }, {
                 //callbacks
             })
@@ -91,7 +96,7 @@ export default function SignupForm() {
             }
 
             toast.success("Sign in successful");
-            router.push("/admin/dashboard");
+            router.push("/admin/me/signin");
 
         } catch (err) {
             toast.error(() => `Unexpected error during sign in: ${err}`)
@@ -103,11 +108,18 @@ export default function SignupForm() {
 
 
   const onSubmit = async (values: SignupFormValues) => {
+      setFormData(values)
       setShowOtp(true)
   }
 
+  const handleOnOtpVerified = async () => {
+      setShowOtp(false)
+      setIsSubmitting(true)
+      await handleSignUp(formData)
+  }
+
   if(showOtp) {
-    return <OtpForm/>
+    return <OtpForm subject={form.getValues().email} onOtpVerified={handleOnOtpVerified}/>
   }
 
   return (
@@ -156,7 +168,7 @@ export default function SignupForm() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input placeholder={"password"} type="password" {...field} />
                       </FormControl>
                     <div className="text-xs text-muted-foreground mt-1">
                         Must be at least 8 characters with uppercase, lowercase, and a number

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, Suspense } from "react"
-import { Search, Calendar, AlertCircle, X } from "lucide-react"
+import { Search, Calendar, AlertCircle} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,8 +43,8 @@ function BookingsContent() {
 
     if (isLoading){
         return (
-            <div className="flex justify-center items-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="flex justify-center min-h-screen items-center py-8">
+                <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-primary"></div>
             </div>
         )
     }
@@ -183,15 +183,24 @@ function BookingsContent() {
                                                     {booking.notes}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button
-                                                        variant="destructive"
-                                                        size="sm"
-                                                        className="gap-2"
-                                                        onClick={() => alert(`Cancel booking ${booking.id}`)}
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                        Cancel
-                                                    </Button>
+                                                    <div className={cn("flex items-center gap-2")}>
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="gap-2"
+                                                            onClick={() => alert(`view booking ${booking.id}`)}
+                                                        >
+                                                            View
+                                                        </Button>
+                                                        <Button
+                                                            variant="destructive"
+                                                            size="sm"
+                                                            className="gap-2"
+                                                            onClick={() => alert(`Cancel booking ${booking.id}`)}
+                                                        >
+                                                            Cancel
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
