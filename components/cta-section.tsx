@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
+import Link from "next/link";
 
 export function CTASection() {
     return (
@@ -10,18 +11,20 @@ export function CTASection() {
                         Ready to Transform Your Booking Experience?
                     </h2>
                     <p className="text-lg md:text-xl opacity-90 max-w-2xl mx-auto text-pretty leading-relaxed">
-                        Join thousands of satisfied users who've simplified their scheduling. Start booking appointments the smart
+                        Join thousands of satisfied users who&apos;ve simplified their scheduling. Start booking appointments the smart
                         way today.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                        <Button
-                            size="lg"
-                            variant="secondary"
-                            className="text-lg px-8 h-14 shadow-xl hover:shadow-2xl transition-shadow"
-                        >
-                            Show Available Bookings
-                            <ArrowRight className="ml-2 h-5 w-5" />
-                        </Button>
+                        <Link href={"/services"}>
+                            <Button
+                                size="lg"
+                                variant="secondary"
+                                className="text-lg px-8 h-14 shadow-xl hover:shadow-2xl transition-shadow"
+                            >
+                                Show Available Bookings
+                                <ArrowRight className="ml-2 h-5 w-5" />
+                            </Button>
+                        </Link>
                     </div>
 
                     {/* Trust Indicators */}

@@ -4,10 +4,11 @@ import type React from "react"
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import {usePathname, useRouter} from "next/navigation"
 import { Menu, X, LogOut, LayoutDashboard, Calendar, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import {authClient} from "@/lib/auth-client";
 
 export default function DashboardLayout({
                                             children,
@@ -16,6 +17,7 @@ export default function DashboardLayout({
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(true)
     const pathname = usePathname()
+    const router = useRouter()
 
     const menuItems = [
         {
@@ -29,6 +31,16 @@ export default function DashboardLayout({
             icon: Wrench,
         },
     ]
+
+    const logout = async () => {
+        await authClient.signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    router.push("/admin/me/signin");
+                },
+            },
+        });
+    }
 
     return (
         <div className="flex h-screen bg-background">
@@ -92,7 +104,7 @@ export default function DashboardLayout({
                             "w-full justify-start gap-3 text-sidebar-foreground hover:bg-destructive/20 hover:text-destructive transition-colors",
                             !sidebarOpen && "justify-center",
                         )}
-                        onClick={() => alert("Logout functionality")}
+                        onClick={logout}
                     >
                         <LogOut className="w-5 h-5 flex-shrink-0" />
                         {sidebarOpen && <span>Log Out</span>}

@@ -3,8 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { useState } from "react"
-import { useRouter } from 'next/navigation'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,17 +18,9 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import {authClient} from "@/lib/auth-client";
 import {toast} from "sonner";
-import OtpForm from "@/components/otp-form";
-
+import {useState} from "react";
 
 const formSchema = z.object({
-  username: z.string()
-    .min(2, {
-      message: "Username must be at least 2 characters.",
-    })
-    .max(100, {
-      message: "Username must not be longer than 100 characters.",
-    }),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
@@ -49,38 +39,30 @@ const formSchema = z.object({
     }),
 })
 
-type SignupFormValues = z.infer<typeof formSchema>
+type SignInFormValues = z.infer<typeof formSchema>
 
+export default function SignInForm() {
+      const form = useForm<SignInFormValues>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+          email: "",
+          password: "",
+        },
+      })
 
+    const [isSubmitting,setIsSubmitting] = useState(false);
 
-export default function SignupForm() {
-
-  const router = useRouter()
-
-  const form = useForm<SignupFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-    },
-  })
-
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [showOtp, setShowOtp] = useState(false)
-
-    const handleSignUp = async (values: SignupFormValues) => {
+    const handleSignIn = async (values: SignInFormValues) => {
 
         const email = values.email;
         const password = values.password;
-        const name = values.username;
 
         try {
-            const { data, error } = await authClient.signUp.email({
+            const { data, error } = await authClient.signIn.email({
                 email,
-                name,
                 password,
                 callbackURL: "/admin/dashboard",
+                rememberMe: false
             }, {
                 //callbacks
             })
@@ -91,8 +73,6 @@ export default function SignupForm() {
             }
 
             toast.success("Sign in successful");
-            router.push("/admin/dashboard");
-
         } catch (err) {
             toast.error(() => `Unexpected error during sign in: ${err}`)
         }finally {
@@ -101,22 +81,18 @@ export default function SignupForm() {
         }
     };
 
-
-  const onSubmit = async (values: SignupFormValues) => {
-      setShowOtp(true)
-  }
-
-  if(showOtp) {
-    return <OtpForm/>
-  }
+    const onSubmit = async (values: SignInFormValues) => {
+        setIsSubmitting(true)
+        await handleSignIn(values);
+    };
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="flex-1 px-4 py-10 lg:px-6">
+      <div className="flex flex-1 flex-col justify-center px-4 py-10 lg:px-6">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
-          <h2 className="mt-2 text-center text-2xl font-bold text-foreground">
-            Create an account
-          </h2>
+          <h3 className="mt-2 text-center text-lg font-bold text-foreground dark:text-foreground">
+            Log In To Your Account
+          </h3>
         </div>
 
         <Card className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
@@ -125,25 +101,12 @@ export default function SignupForm() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input placeholder="johndoe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="email@example.com" type="email" {...field} />
+                        <Input type="email" placeholder="Enter your email" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -156,46 +119,31 @@ export default function SignupForm() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input 
+                          type="password" 
+                          placeholder="Create a password" 
+                          {...field} 
+                        />
                       </FormControl>
-                    <div className="text-xs text-muted-foreground mt-1">
-                        Must be at least 8 characters with uppercase, lowercase, and a number
-                    </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing up...' : 'Sign Up'}
+                <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+                    {isSubmitting ? 'Signing in...' : 'Sign In'}
                 </Button>
               </form>
             </Form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link
-                href="/admin/me/signin"
-                className="font-medium text-primary hover:underline"
-              >
-                Sign in
-              </Link>
-            </p>
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground px-4 mt-5">
-          By signing up, you agree to our{" "}
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account? {" "}
           <Link
-            href="#"
-            className="text-primary hover:underline"
+            href="/admin/me/signup"
+            className="font-medium text-primary hover:underline"
           >
-            Terms of use
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="#"
-            className="text-primary hover:underline"
-          >
-            Privacy policy
+            Sign up
           </Link>
         </p>
       </div>
