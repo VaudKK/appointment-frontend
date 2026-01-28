@@ -15,6 +15,17 @@ export interface Service {
     updatedAt: string // ISO date string
 }
 
+export interface SendMailRequest {
+    to: string
+    templateName: string
+    data: Record<string, string>
+}
+
+export interface SendMailResponse {
+    success: boolean
+    error?: string
+}
+
 export interface PaginatedResponse<T> {
     content: T[]
     page: number
