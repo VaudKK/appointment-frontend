@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import {useState, Suspense, useEffect} from "react"
 import { Search, Calendar, AlertCircle} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,6 +20,8 @@ import {useQuery} from "@tanstack/react-query";
 import {Appointment, PaginatedResponse} from "@/lib/types";
 import {getOrganizationBookings} from "@/lib/api/booking";
 import {format, parseISO} from "date-fns";
+import Loader from "@/components/loader";
+import {authClient} from "@/lib/auth-client";
 
 
 function BookingsContent() {
@@ -29,6 +31,7 @@ function BookingsContent() {
     const [currentPage, setCurrentPage] = useState(1)
     const [currentPageSize,setCurrentPageSize] = useState(10)
 
+    const [token,setToken] = useState<string | undefined>(undefined)
 
     const {
         data,
@@ -37,15 +40,22 @@ function BookingsContent() {
         error,
     } = useQuery<PaginatedResponse<Appointment>>({
         queryKey: ["organizationBookings", 1,currentPage],
-        queryFn: () => getOrganizationBookings("1",currentPage,currentPageSize),
+        queryFn: async () => {
+            return getOrganizationBookings(token ?? '',currentPage,currentPageSize)
+        },
+        enabled: !!token
     })
+
+    useEffect(() => {
+        authClient.token().then((tokenPayload) => {
+            setToken(tokenPayload.data?.token)
+        })
+    }, []);
 
 
     if (isLoading){
         return (
-            <div className="flex justify-center min-h-screen items-center py-8">
-                <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-primary"></div>
-            </div>
+            <Loader/>
         )
     }
 

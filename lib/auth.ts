@@ -1,14 +1,28 @@
 import { betterAuth } from "better-auth";
 import {mongodbAdapter} from "better-auth/adapters/mongodb";
 import db from "@/lib/mongodb";
-import {jwt} from "better-auth/plugins";
+import {bearer, jwt} from "better-auth/plugins";
 import {sendEmail} from "@/lib/api/mail";
 
 export const auth = betterAuth({
     database: mongodbAdapter(db),
+    emailVerification: {
+        sendOnSignUp: true,
+        sendVerificationEmail: async ({user,url}) => {
+            const request = {
+                to: user.email,
+                templateName: "verify_email.tmpl",
+                data: {
+                    "VerifyLink": url
+                }
+            }
+            await sendEmail(request)
+        }
+    },
     emailAndPassword: {
         enabled: true,
         autoSignIn: false,
+        requireEmailVerification: true,
         sendResetPassword: async ({user,url}) => {
            const request = {
                 to: user.email,
@@ -20,5 +34,8 @@ export const auth = betterAuth({
             await sendEmail(request)
         }
     },
-    plugins: [jwt()]
+    plugins: [jwt()],
+    advanced:{
+        cookiePrefix: "kwa-wakati"
+    }
 });

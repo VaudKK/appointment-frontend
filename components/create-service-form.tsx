@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import {useEffect, useState} from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import {Loader2, Upload, X} from "lucide-react"
@@ -14,6 +14,7 @@ import { ScrollArea } from "./ui/scroll-area"
 import {useMutation} from "@tanstack/react-query";
 import {createService} from "@/lib/api/services";
 import {StatusAlertDialog} from "@/components/status-alert-dialog";
+import {authClient} from "@/lib/auth-client";
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -25,6 +26,15 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess,setIsSuccess] = useState(false)
+
+    const [token,setToken] = useState<string | undefined>(undefined)
+
+    useEffect(() => {
+        authClient.token().then((tokenPayload) => {
+            setToken(tokenPayload.data?.token)
+        })
+    }, []);
+
 
     const form = useForm<ServiceFormValues>({
         resolver: zodResolver(serviceFormSchema),
@@ -42,7 +52,7 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
     })
 
     const serviceMutation = useMutation({
-        mutationFn: (req: CreateServiceRequest) => createService(req),
+        mutationFn: (req: CreateServiceRequest) => createService(req,token ?? ""),
         onSuccess: () => {
             setIsSubmitting(false);
             setIsSuccess(true);
@@ -172,6 +182,7 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                                     <FormLabel className="text-foreground">Description *</FormLabel>
                                     <FormControl>
                                         <Textarea
+                                            maxLength={1000}
                                             placeholder="Describe your service in detail..."
                                             {...field}
                                             className="bg-input border-border text-foreground placeholder:text-muted-foreground"
@@ -224,7 +235,6 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                         </div>
 
                         {/* Location and Buffer Time */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}
                                 name="location"
@@ -232,7 +242,8 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                                     <FormItem>
                                         <FormLabel className="text-foreground">Location *</FormLabel>
                                         <FormControl>
-                                            <Input
+                                            <Textarea
+                                                maxLength={200}
                                                 placeholder="e.g., RNG Plaza"
                                                 {...field}
                                                 className="bg-input border-border text-foreground placeholder:text-muted-foreground"
@@ -263,7 +274,6 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                                     </FormItem>
                                 )}
                             />
-                        </div>
 
                         {/* Slots Per Time Duration */}
                         <FormField

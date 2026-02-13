@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useState} from "react"
+import {useState} from "react"
 import { Plus, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,25 +13,25 @@ import {PaginatedResponse, Service} from "@/lib/types";
 import {useQuery} from "@tanstack/react-query";
 import {getOrganizationServices} from "@/lib/api/services";
 import {CreateServiceForm} from "@/components/create-service-form";
+import FetchError from "@/components/fetch-error";
+import {authClient} from "@/lib/auth-client";
 
 
 export default function ServicesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const {data: session} = authClient.useSession()
 
     const {
         data,
         isLoading,
         isError,
         error,
-        refetch,
     } = useQuery<PaginatedResponse<Service>>({
-        queryKey: ["services", "1"],
-        queryFn: () => getOrganizationServices("1"),
+        queryKey: ["services"],
+        queryFn: () => getOrganizationServices(session ? session.session.userId : ''),
+        enabled: !!session
     })
 
-    useEffect(() => {
-        refetch()
-    }, [isDialogOpen]);
 
     if (isLoading){
         return (
@@ -43,10 +43,7 @@ export default function ServicesPage() {
 
     if (isError){
         return (
-            <div className="flex gap-3 p-3 bg-destructive/10 border border-destructive/50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-destructive">{error.message}</p>
-            </div>
+           <FetchError message={error.message}/>
         )
     }
 

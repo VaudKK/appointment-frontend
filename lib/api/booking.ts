@@ -1,6 +1,3 @@
-"use server"
-
-
 import {
     Appointment,
     CreateAppointmentRequest,
@@ -8,10 +5,8 @@ import {
     PaginatedResponse,
 } from "@/lib/types";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-
 export async function createBooking(booking: CreateAppointmentRequest): Promise<CreateAppointmentResponse> {
-    const res = await fetch(`${baseUrl}/api/appointments/create`,{
+    const res = await fetch(`/api/appointments/create`,{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -27,7 +22,7 @@ export async function createBooking(booking: CreateAppointmentRequest): Promise<
 }
 
 export async function sendOTP(phoneNumber: string,channel: string): Promise<{sessionId: string}>{
-    const res = await fetch(`${baseUrl}/api/otp/send?channel=${channel}`,{
+    const res = await fetch(`/api/otp/send?channel=${channel}`,{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -45,7 +40,7 @@ export async function sendOTP(phoneNumber: string,channel: string): Promise<{ses
 }
 
 export async function verifyOTP(sessionId: string, otp: string): Promise<{success: boolean}>{
-    const res = await fetch(`${baseUrl}/api/otp/verify`,{
+    const res = await fetch(`/api/otp/verify`,{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -62,16 +57,18 @@ export async function verifyOTP(sessionId: string, otp: string): Promise<{succes
     return await res.json();
 }
 
-export async function getOrganizationBookings(organizationId: string, page: number, size: number): Promise<PaginatedResponse<Appointment>> {
-    const res = await fetch(`${baseUrl}/api/admin/bookings/${organizationId}?page=${page}&size=${size}`,{
+export async function getOrganizationBookings(token: string,page: number, size: number): Promise<PaginatedResponse<Appointment>> {
+    const res = await fetch(`/api/admin/bookings?page=${page}&size=${size}`,{
         method: "GET",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
         }
     });
 
     if (!res.ok) {
-        throw new Error("Failed to fetch services");
+        throw new Error("Failed to fetch bookings");
     }
 
     return await res.json();

@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { useState } from "react"
-import { useRouter } from 'next/navigation'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,8 +19,6 @@ import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import {authClient} from "@/lib/auth-client";
 import {toast} from "sonner";
-import OtpForm from "@/components/otp-form";
-
 
 const formSchema = z.object({
   username: z.string()
@@ -55,7 +52,6 @@ type SignupFormValues = z.infer<typeof formSchema>
 
 export default function SignupForm() {
 
-  const router = useRouter()
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -67,12 +63,6 @@ export default function SignupForm() {
   })
 
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [showOtp, setShowOtp] = useState(false)
-    const [formData,setFormData] = useState<SignupFormValues>({
-        email: "",
-        password: "",
-        username: "",
-    })
 
     const handleSignUp = async (values: SignupFormValues) => {
 
@@ -81,11 +71,11 @@ export default function SignupForm() {
         const name = values.username;
 
         try {
-            const { data, error } = await authClient.signUp.email({
+            const { error } = await authClient.signUp.email({
                 email,
                 name,
                 password,
-                callbackURL: "/admin/me/signin",
+                callbackURL: "/admin/me/verification",
             }, {
                 //callbacks
             })
@@ -95,8 +85,7 @@ export default function SignupForm() {
                 return;
             }
 
-            toast.success("Sign in successful");
-            router.push("/admin/me/signin");
+            toast.success("Verification link has been sent to your email");
 
         } catch (err) {
             toast.error(() => `Unexpected error during sign in: ${err}`)
@@ -108,19 +97,10 @@ export default function SignupForm() {
 
 
   const onSubmit = async (values: SignupFormValues) => {
-      setFormData(values)
-      setShowOtp(true)
-  }
-
-  const handleOnOtpVerified = async () => {
-      setShowOtp(false)
       setIsSubmitting(true)
-      await handleSignUp(formData)
+      await handleSignUp(values)
   }
 
-  if(showOtp) {
-    return <OtpForm subject={form.getValues().email} onOtpVerified={handleOnOtpVerified}/>
-  }
 
   return (
     <div className="flex items-center justify-center min-h-screen">

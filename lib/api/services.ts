@@ -1,5 +1,3 @@
-"use server"
-
 import {
     CreateServiceRequest, CreateServiceResponse,
     PaginatedResponse,
@@ -7,10 +5,11 @@ import {
     TimeSlot
 } from "@/lib/types";
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-
 export async function getOrganizationServices(organizationId: string): Promise<PaginatedResponse<Service>> {
-    const res = await fetch(`${baseUrl}/api/services/${organizationId}`,{
+
+    console.log(organizationId)
+
+    const res = await fetch(`/api/services/${organizationId}`,{
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -32,7 +31,7 @@ export async function getAvailableSlots(serviceId: string, dateSelected: Date): 
         timeZone: 'Africa/Nairobi'
     }).replace(/\//g, '-');
 
-    const res = await fetch(`${baseUrl}/api/services/slots/${serviceId}/${formattedDate}`,{
+    const res = await fetch(`/api/services/slots/${serviceId}/${formattedDate}`,{
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -46,11 +45,13 @@ export async function getAvailableSlots(serviceId: string, dateSelected: Date): 
     return await res.json();
 }
 
-export async function createService(newService: CreateServiceRequest): Promise<CreateServiceResponse> {
-    const res = await fetch(`${baseUrl}/api/admin/services/create`,{
+export async function createService(newService: CreateServiceRequest,token: string): Promise<CreateServiceResponse> {
+    const res = await fetch(`/api/admin/services/create`,{
         method: "POST",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify(newService)
     });
