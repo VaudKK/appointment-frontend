@@ -20,6 +20,7 @@ interface BookingFormProps {
     service: Service
     timeSlot: TimeSlot
     onSuccess?: () => void
+    storeSlug?: string
 }
 
 const bookingSchema = z.object({
@@ -30,7 +31,7 @@ const bookingSchema = z.object({
 
 type BookingFormValues = z.infer<typeof bookingSchema>
 
-export function BookingForm({ service,timeSlot }: BookingFormProps) {
+export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
     const [showOTP, setShowOTP] = useState(false)
     const [phoneNumber, setPhoneNumber] = useState("")
     const [bookingSuccess, setBookingSuccess] = useState(false)
@@ -101,7 +102,7 @@ export function BookingForm({ service,timeSlot }: BookingFormProps) {
                         {(service.price).toLocaleString()}
                     </p>
                 </div>
-                <Button onClick={() => (window.location.href = "/services")} className="w-full">
+                <Button onClick={() => (window.location.href = storeSlug ? `/store/${storeSlug}/services` : "/services")} className="w-full">
                     Back to Services
                 </Button>
             </div>

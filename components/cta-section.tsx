@@ -2,7 +2,11 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link";
 
-export function CTASection() {
+interface CTASectionProps {
+    servicesHref?: string;
+}
+
+export function CTASection({ servicesHref = "/services" }: CTASectionProps) {
     return (
         <section className="py-20 md:py-28 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
             <div className="container mx-auto px-4">
@@ -15,7 +19,7 @@ export function CTASection() {
                         way today.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                        <Link href={"/services"}>
+                        <Link href={servicesHref}>
                             <Button
                                 size="lg"
                                 variant="secondary"

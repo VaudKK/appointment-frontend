@@ -9,25 +9,40 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CreateServiceRequest, serviceFormSchema, type ServiceFormValues} from "@/lib/types"
+import { CreateServiceRequest, serviceFormSchema, Service, type ServiceFormValues, UpdateServiceRequest} from "@/lib/types"
 import { ScrollArea } from "./ui/scroll-area"
 import {useMutation} from "@tanstack/react-query";
-import {createService} from "@/lib/api/services";
+import {createService, updateService} from "@/lib/api/services";
 import {StatusAlertDialog} from "@/components/status-alert-dialog";
 import {authClient} from "@/lib/auth-client";
+import {getSignedImageUrl, uploadServiceImage} from "@/lib/api/files";
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 interface CreateServiceFormProps {
     onCancel: () => void
+    onSaved?: () => void
+    mode?: "create" | "edit"
+    initialService?: Service | null
 }
 
-export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
-    const [imagePreview, setImagePreview] = useState<string | null>(null)
+export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialService = null }: CreateServiceFormProps) {
+    const [imagePreview, setImagePreview] = useState<string | null>(() => {
+        const initialImage = initialService?.imageUrl ?? null
+        if (!initialImage) {
+            return null
+        }
+        if (initialImage.startsWith("http://") || initialImage.startsWith("https://")) {
+            return initialImage
+        }
+        return null
+    })
+    const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSuccess,setIsSuccess] = useState(false)
 
     const [token,setToken] = useState<string | undefined>(undefined)
+    const { data: session } = authClient.useSession()
 
     useEffect(() => {
         authClient.token().then((tokenPayload) => {
@@ -35,27 +50,61 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
         })
     }, []);
 
+    useEffect(() => {
+        const initialImage = initialService?.imageUrl
+
+        if (!initialImage || mode !== "edit") {
+            return
+        }
+
+        if (initialImage.startsWith("http://") || initialImage.startsWith("https://")) {
+            return
+        }
+
+        let isMounted = true
+        getSignedImageUrl(initialImage)
+            .then((url) => {
+                if (isMounted) {
+                    setImagePreview(url)
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setImagePreview(null)
+                }
+            })
+
+        return () => {
+            isMounted = false
+        }
+    }, [initialService?.imageUrl, mode])
 
     const form = useForm<ServiceFormValues>({
         resolver: zodResolver(serviceFormSchema),
         defaultValues: {
-            name: "",
-            description: "",
-            duration: 60,
-            bufferTime: 0,
-            slotsPerTimeDuration: 1,
-            price: 0,
-            location: "",
-            days: [],
-            imageUrl: File
+            name: initialService?.name ?? "",
+            description: initialService?.description ?? "",
+            duration: initialService?.duration ?? 60,
+            bufferTime: initialService?.bufferTime ?? 0,
+            slotsPerTimeDuration: initialService?.slotsPerTimeDuration ?? 1,
+            price: initialService?.price ?? 0,
+            location: initialService?.location ?? "",
+            days: initialService?.days ?? [],
+            imageUrl: initialService ? new File([], "existing-image") : new File([], "")
         },
     })
 
     const serviceMutation = useMutation({
-        mutationFn: (req: CreateServiceRequest) => createService(req,token ?? ""),
+        mutationFn: (req: CreateServiceRequest | UpdateServiceRequest) => {
+            if (mode === "edit") {
+                return updateService(req as UpdateServiceRequest, token ?? "")
+            }
+            return createService(req as CreateServiceRequest,token ?? "")
+        },
         onSuccess: () => {
             setIsSubmitting(false);
             setIsSuccess(true);
+            onSaved?.()
         },
         onError: () => {
             setIsSubmitting(false)
@@ -64,8 +113,36 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
     })
 
     const onSubmit = async (values: ServiceFormValues) => {
+        if (!session?.user.organizationId) {
+            setIsSubmitting(false)
+            return
+        }
+
         setIsSubmitting(true)
-        const createServiceRequest: CreateServiceRequest = {
+
+        let imageUrl = mode === "edit" ? (initialService?.imageUrl ?? "") : ""
+
+        try {
+            if (selectedImageFile) {
+                if (!token) {
+                    setIsSubmitting(false)
+                    return
+                }
+                imageUrl = await uploadServiceImage(session.user.organizationId, selectedImageFile, token)
+            } else if (mode === "create") {
+                form.setError("imageUrl", { message: "Please upload a service image" })
+                setIsSubmitting(false)
+                return
+            } else if (mode === "edit" && imagePreview === null) {
+                imageUrl = ""
+            }
+        } catch {
+            form.setError("imageUrl", { message: "Failed to upload image" })
+            setIsSubmitting(false)
+            return
+        }
+
+        const basePayload: CreateServiceRequest = {
             name: values.name,
             days: values.days,
             bufferTime: values.bufferTime,
@@ -73,11 +150,21 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
             description: values.description,
             price: values.price,
             locations: values.location,
-            organizationId: "1",
+            organizationId: session.user.organizationId,
             slotsPerTimeDuration: values.slotsPerTimeDuration,
-            imageUrl: ""
+            imageUrl
         }
-        serviceMutation.mutate(createServiceRequest)
+
+        if (mode === "edit" && initialService) {
+            const updateServiceRequest: UpdateServiceRequest = {
+                ...basePayload,
+                serviceId: initialService.id,
+            }
+            serviceMutation.mutate(updateServiceRequest)
+            return
+        }
+
+        serviceMutation.mutate(basePayload)
     }
 
     const handleImageChange = (file: File | undefined) => {
@@ -95,12 +182,14 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
             }
             reader.readAsDataURL(file)
 
+            setSelectedImageFile(file)
             form.setValue("imageUrl", file)
         }
     }
 
     const removeImage = () => {
         setImagePreview(null)
+        setSelectedImageFile(null)
         form.setValue("imageUrl", new File([], ""))
     }
 
@@ -113,7 +202,7 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                         <FormField
                             control={form.control}
                             name="imageUrl"
-                            render={({ field }) => (
+                            render={() => (
                                 <FormItem>
                                     <FormLabel className="text-foreground">Service Image *</FormLabel>
                                     <FormControl>
@@ -360,14 +449,20 @@ export function CreateServiceForm({ onCancel }: CreateServiceFormProps) {
                                         Processing...
                                     </>
                                 ) : (
-                                    "Create Service"
+                                    mode === "edit" ? "Update" : "Create Service"
                                 )}
                             </Button>
                         </div>
                     </form>
                 </Form>
 
-                <StatusAlertDialog isOpen={isSuccess} onClose={() => {onCancel()}} type={"success"} title={"Add Service"} message={"Service create successfully"}/>
+                <StatusAlertDialog
+                    isOpen={isSuccess}
+                    onClose={() => {onCancel()}}
+                    type={"success"}
+                    title={mode === "edit" ? "Update Service" : "Add Service"}
+                    message={mode === "edit" ? "Service updated successfully" : "Service create successfully"}
+                />
             </div>
         </ScrollArea>
     )

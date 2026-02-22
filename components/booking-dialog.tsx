@@ -10,9 +10,10 @@ interface BookingDialogProps {
     timeSlot: TimeSlot
     open: boolean
     onOpenChange: (open: boolean) => void
+    storeSlug?: string
 }
 
-export function BookingDialog({ service, timeSlot, open, onOpenChange }: BookingDialogProps) {
+export function BookingDialog({ service, timeSlot, open, onOpenChange, storeSlug }: BookingDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-md">
@@ -20,7 +21,12 @@ export function BookingDialog({ service, timeSlot, open, onOpenChange }: Booking
                     <DialogTitle>Book {service.name}</DialogTitle>
                     <DialogDescription>{service.location}</DialogDescription>
                 </DialogHeader>
-                <BookingForm service={service} timeSlot={timeSlot} onSuccess={() => onOpenChange(false)} />
+                <BookingForm
+                    service={service}
+                    timeSlot={timeSlot}
+                    onSuccess={() => onOpenChange(false)}
+                    storeSlug={storeSlug}
+                />
             </DialogContent>
         </Dialog>
     )

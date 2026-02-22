@@ -19,6 +19,10 @@ import {authClient} from "@/lib/auth-client";
 
 export default function ServicesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isEditMode, setIsEditMode] = useState(false)
+    const [serviceToEdit, setServiceToEdit] = useState<Service | null>(null)
+    const [isServiceDetailsOpen, setIsServiceDetailsOpen] = useState(false)
+    const [selectedService, setSelectedService] = useState<Service | null>(null)
     const {data: session} = authClient.useSession()
 
     const {
@@ -26,9 +30,10 @@ export default function ServicesPage() {
         isLoading,
         isError,
         error,
+        refetch
     } = useQuery<PaginatedResponse<Service>>({
         queryKey: ["services"],
-        queryFn: () => getOrganizationServices(session ? session.session.userId : ''),
+        queryFn: () => getOrganizationServices(session ? session.user.organizationId : ''),
         enabled: !!session
     })
 
@@ -51,6 +56,23 @@ export default function ServicesPage() {
 
     }
 
+    const handleServiceRowClick = (service: Service) => {
+        setSelectedService(service)
+        setIsServiceDetailsOpen(true)
+    }
+
+    const handleCreateClick = () => {
+        setIsEditMode(false)
+        setServiceToEdit(null)
+        setIsDialogOpen(true)
+    }
+
+    const handleEditClick = (service: Service) => {
+        setIsEditMode(true)
+        setServiceToEdit(service)
+        setIsDialogOpen(true)
+    }
+
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
@@ -62,16 +84,28 @@ export default function ServicesPage() {
                 {/* Create Service Button */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground" onClick={handleCreateClick}>
                             <Plus className="w-4 h-4" />
                             Create Service
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="bg-card border-border">
                         <DialogHeader>
-                            <DialogTitle className="text-foreground">Create New Service</DialogTitle>
+                            <DialogTitle className="text-foreground">{isEditMode ? "Edit Service" : "Create New Service"}</DialogTitle>
                         </DialogHeader>
-                        <CreateServiceForm onCancel={() => setIsDialogOpen(false)} />
+                        <CreateServiceForm
+                            key={isEditMode ? `edit-${serviceToEdit?.id ?? "unknown"}` : "create-service"}
+                            onCancel={() => {
+                                setIsDialogOpen(false)
+                                setIsEditMode(false)
+                                setServiceToEdit(null)
+                            }}
+                            onSaved={() => {
+                                refetch()
+                            }}
+                            mode={isEditMode ? "edit" : "create"}
+                            initialService={serviceToEdit}
+                        />
                     </DialogContent>
                 </Dialog>
             </div>
@@ -103,7 +137,11 @@ export default function ServicesPage() {
                                 </TableHeader>
                                 <TableBody>
                                     {data?.content.map((service) => (
-                                        <TableRow key={service.id} className="border-border hover:bg-sidebar">
+                                        <TableRow
+                                            key={service.id}
+                                            className="border-border hover:bg-sidebar cursor-pointer"
+                                            onClick={() => handleServiceRowClick(service)}
+                                        >
                                             <TableCell className="text-foreground font-medium">{service.name}</TableCell>
                                             <TableCell className="text-muted-foreground">{service.location}</TableCell>
                                             <TableCell className="text-muted-foreground">Ksh {service.price}</TableCell>
@@ -122,15 +160,28 @@ export default function ServicesPage() {
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-3">
                                                     <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">
-                              {service.available ? "Available" : "Unavailable"}
-                            </span>
-                                                        <Switch
-                                                            checked={service.available}
-                                                            onCheckedChange={() => toggleServiceAvailability()}
-                                                            className="data-[state=checked]:bg-green-600"
-                                                        />
+                                                        <span className="text-xs text-muted-foreground">
+                                                        {service.available ? "Available" : "Unavailable"}
+                                                        </span>
+                                                            <div onClick={(e) => e.stopPropagation()}>
+                                                                <Switch
+                                                                    checked={service.available}
+                                                                    onCheckedChange={() => toggleServiceAvailability()}
+                                                                    className="data-[state=checked]:bg-green-600"
+                                                                />
+                                                            </div>
                                                     </div>
+                                                    <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="gap-2"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleEditClick(service)
+                                                            }}
+                                                        >
+                                                            Edit
+                                                    </Button>
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -141,6 +192,71 @@ export default function ServicesPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <Dialog open={isServiceDetailsOpen} onOpenChange={setIsServiceDetailsOpen}>
+                <DialogContent className="bg-card border-border max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="text-foreground">Service Details</DialogTitle>
+                    </DialogHeader>
+                    {selectedService && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-xl font-semibold text-foreground">{selectedService.name}</h3>
+                                <p className="text-sm text-muted-foreground">{selectedService.description}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <p className="text-muted-foreground">Location</p>
+                                    <p className="text-foreground">{selectedService.location}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Price</p>
+                                    <p className="text-foreground">Ksh {selectedService.price}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Duration</p>
+                                    <p className="text-foreground">{selectedService.duration} min</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Buffer Time</p>
+                                    <p className="text-foreground">{selectedService.bufferTime} min</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Slots Per Duration</p>
+                                    <p className="text-foreground">{selectedService.slotsPerTimeDuration}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">Status</p>
+                                    <Badge
+                                        className={cn(
+                                            "text-xs",
+                                            selectedService.available ? "bg-green-800 text-white" : "bg-gray-500/20 text-gray-300",
+                                        )}
+                                    >
+                                        {selectedService.available ? "Available" : "Unavailable"}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-1">Available Days</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedService.days.length > 0 ? (
+                                        selectedService.days.map((day) => (
+                                            <Badge key={day} variant="secondary">
+                                                {day}
+                                            </Badge>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">No days configured</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

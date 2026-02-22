@@ -1,21 +1,63 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Clock, Calendar } from "lucide-react"
+import { MapPin, Clock, Calendar, Loader2 } from "lucide-react"
 import {Service, TimeSlot} from "@/lib/types";
 import {BookingDialog} from "@/components/booking-dialog";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import TimeSlotDialog from "@/components/time_slot_dialog";
+import { getSignedImageUrl } from "@/lib/api/files";
 
 interface ServiceCardProps {
     service: Service
+    storeSlug?: string
 }
 
-export function ServiceCard({ service }: ServiceCardProps) {
+export function ServiceCard({ service, storeSlug }: ServiceCardProps) {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isBookingDialogOpen,setIsBookingDialogOpen] = useState(false)
     const isAvailable = service.available;
     const [timeSlot,setTimeSlot] = useState<TimeSlot>();
+    const [resolvedImageSrc, setResolvedImageSrc] = useState<{ key: string; url: string } | null>(null);
+    const [failedImageKey, setFailedImageKey] = useState<string | null>(null);
+    const [loadedImageSrc, setLoadedImageSrc] = useState<string | null>(null);
+    const hasDirectImageUrl =
+        Boolean(service.imageUrl) &&
+        (service.imageUrl.startsWith("http://") || service.imageUrl.startsWith("https://"));
+    const hasImageKey = Boolean(service.imageUrl) && !hasDirectImageUrl;
+    const imageSrc = hasDirectImageUrl
+        ? service.imageUrl
+        : (resolvedImageSrc?.key === service.imageUrl ? resolvedImageSrc.url : "/placeholder.png");
+    const isImageResolving =
+        hasImageKey &&
+        resolvedImageSrc?.key !== service.imageUrl &&
+        failedImageKey !== service.imageUrl;
+    const isImageLoading = isImageResolving || loadedImageSrc !== imageSrc;
+
+    useEffect(() => {
+        const rawImage = service.imageUrl;
+
+        if (!rawImage || rawImage.startsWith("http://") || rawImage.startsWith("https://")) {
+            return;
+        }
+
+        let isMounted = true;
+        getSignedImageUrl(rawImage)
+            .then((url) => {
+                if (isMounted) {
+                    setResolvedImageSrc({ key: rawImage, url });
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setFailedImageKey(rawImage);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [service.imageUrl]);
 
     const handleBooking = () => {
         setIsDialogOpen(true)
@@ -31,9 +73,16 @@ export function ServiceCard({ service }: ServiceCardProps) {
             <Card className="overflow-hidden hover:shadow-lg transition-shadow group">
                 {/* Image */}
                 <div className="relative h-48 bg-muted overflow-hidden">
+                    {isImageLoading && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                    )}
                     <img
-                        src={service.imageUrl || "/placeholder.png"}
+                        src={imageSrc}
                         alt={service.name}
+                        onLoad={() => setLoadedImageSrc(imageSrc)}
+                        onError={() => setLoadedImageSrc(imageSrc)}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute top-3 right-3">
@@ -87,7 +136,13 @@ export function ServiceCard({ service }: ServiceCardProps) {
             />
 
             {timeSlot != null &&
-                <BookingDialog service={service} timeSlot={timeSlot} open={isBookingDialogOpen} onOpenChange={setIsBookingDialogOpen} />}
+                <BookingDialog
+                    service={service}
+                    timeSlot={timeSlot}
+                    open={isBookingDialogOpen}
+                    onOpenChange={setIsBookingDialogOpen}
+                    storeSlug={storeSlug}
+                />}
 
         </>
     )

@@ -18,8 +18,6 @@ import { Input } from "@/components/ui/input"
 import {authClient} from "@/lib/auth-client";
 import {toast} from "sonner";
 import {useEffect, useState} from "react";
-import {AlertCircle} from "lucide-react";
-import Link from "next/link";
 import {useRouter} from "next/navigation";
 import InvalidLink from "@/components/invalid-link";
 

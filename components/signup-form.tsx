@@ -31,6 +31,16 @@ const formSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
+  organizationSlug: z.string()
+    .min(3, {
+      message: "Store slug must be at least 3 characters.",
+    })
+    .max(64, {
+      message: "Store slug must not be longer than 64 characters.",
+    })
+    .regex(/^[a-z0-9-]+$/, {
+      message: "Store slug can only contain lowercase letters, numbers, and hyphens.",
+    }),
   password: z.string()
     .min(8, {
       message: "Password must be at least 8 characters.",
@@ -58,6 +68,7 @@ export default function SignupForm() {
     defaultValues: {
       username: "",
       email: "",
+      organizationSlug: "",
       password: "",
     },
   })
@@ -69,15 +80,18 @@ export default function SignupForm() {
         const email = values.email;
         const password = values.password;
         const name = values.username;
+        const organizationSlug = values.organizationSlug.trim().toLowerCase();
+        const organizationId = z.uuid().parse(crypto.randomUUID()).toString();
 
         try {
             const { error } = await authClient.signUp.email({
                 email,
                 name,
                 password,
+                organizationId,
+                organizationSlug,
                 callbackURL: "/admin/me/verification",
             }, {
-                //callbacks
             })
 
             if (error) {
@@ -137,6 +151,22 @@ export default function SignupForm() {
                       <FormControl>
                         <Input placeholder="email@example.com" type="email" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="organizationSlug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Store Slug</FormLabel>
+                      <FormControl>
+                        <Input placeholder="my-store" {...field} />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        This becomes your store URL: /store/{field.value || "my-store"}/home
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

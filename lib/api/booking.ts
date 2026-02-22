@@ -4,6 +4,7 @@ import {
     CreateAppointmentResponse,
     PaginatedResponse,
 } from "@/lib/types";
+import {enforceAdminAuthOrRedirect} from "@/lib/api/admin-auth-redirect";
 
 export async function createBooking(booking: CreateAppointmentRequest): Promise<CreateAppointmentResponse> {
     const res = await fetch(`/api/appointments/create`,{
@@ -67,9 +68,33 @@ export async function getOrganizationBookings(token: string,page: number, size: 
         }
     });
 
+    enforceAdminAuthOrRedirect(res)
+
     if (!res.ok) {
         throw new Error("Failed to fetch bookings");
     }
 
     return await res.json();
+}
+
+export async function cancelBooking(token: string, bookingId: string): Promise<void> {
+    const res = await fetch(`/api/admin/bookings/cancel`,{
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            "appointmentId": bookingId
+        })
+    });
+
+    enforceAdminAuthOrRedirect(res)
+
+    if (!res.ok) {
+        throw new Error("Failed to cancel booking");
+    }
+
+    await res.json();
 }

@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import {mongodbAdapter} from "better-auth/adapters/mongodb";
 import db from "@/lib/mongodb";
-import {bearer, jwt} from "better-auth/plugins";
+import {jwt} from "better-auth/plugins";
 import {sendEmail} from "@/lib/api/mail";
 
 export const auth = betterAuth({
@@ -37,5 +37,20 @@ export const auth = betterAuth({
     plugins: [jwt()],
     advanced:{
         cookiePrefix: "kwa-wakati"
+    },
+    user:{
+        additionalFields: {
+            organizationId: {
+                type: "string",
+                required: true,
+                input: true,
+            },
+            organizationSlug: {
+                type: "string",
+                required: true,
+                input: true,
+                unique: true,
+            },
+        },
     }
 });

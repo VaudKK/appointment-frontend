@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LogOut, LayoutDashboard, Calendar, Wrench } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, Calendar, Wrench, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -27,6 +27,11 @@ export default function AdminDashboardShell({
             label: "Services",
             href: "/admin/dashboard/services",
             icon: Wrench,
+        },
+        {
+            label: "Settings",
+            href: "/admin/dashboard/settings",
+            icon: Settings,
         },
     ];
 

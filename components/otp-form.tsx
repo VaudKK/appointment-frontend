@@ -45,7 +45,7 @@ export default function OtpForm({subject,onOtpVerified}: OtpProps) {
     }
 
     const sendOtpMutation = useMutation({
-        mutationFn: (msisdn: string) => sendOTP(msisdn,"email"),
+        mutationFn: (msisdn: string) => sendOTP(msisdn,"sms"),
         onError: (error) => {
             setError(error.message)
             setIsLoading(false)

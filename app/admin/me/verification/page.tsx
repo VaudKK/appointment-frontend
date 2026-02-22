@@ -1,12 +1,16 @@
-import React from 'react'
 import {CheckCircle} from "lucide-react";
 import Link from "next/link";
 import {Button} from "@/components/ui/button";
 import InvalidLink from "@/components/invalid-link";
 
-const VerificationPage = ({searchParams}: {searchParams: {error?: string}}) => {
+type VerificationPageProps = {
+    searchParams: Promise<{ error?: string }>
+}
 
-    if (searchParams?.error){
+const VerificationPage = async ({searchParams}: VerificationPageProps) => {
+    const { error } = await searchParams
+
+    if (error){
         return (
             <InvalidLink title={"Invalid Verification Link"} message={"This email verificaton link has expired or is invalid."}/>
         );

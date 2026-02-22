@@ -109,3 +109,7 @@ export interface CreateServiceRequest {
     price: number;
     organizationId: string;
 }
+
+export interface UpdateServiceRequest extends CreateServiceRequest {
+    serviceId: string;
+}
