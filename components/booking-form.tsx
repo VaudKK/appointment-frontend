@@ -65,7 +65,8 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
             notes: booking.notes,
             userId: null,
             organizationId: service.organizationId,
-            slotId: timeSlot.slotId
+            slotId: timeSlot.slotId,
+            phoneNumber: phoneNumber
         }
         bookingMutation.mutate(bookingRequest)
     }

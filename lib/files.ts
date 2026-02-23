@@ -8,7 +8,7 @@ export default async function uploadFile(organizationId: string, file: File): Pr
 
     const command = new PutObjectCommand({
         Bucket: process.env.S3_BUCKET_NAME!,
-        Key: `uploads/${organizationId}/${file.name}`,
+        Key: `uploads/${organizationId}/${Date.now()}/${file.name}`,
         Body: buffer,
         ContentType: file.type,
     });

@@ -26,13 +26,6 @@ export function BookingHero() {
                             appointments in seconds.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <Button size="lg" className="text-lg px-8 h-14 shadow-lg hover:shadow-xl transition-shadow">
-                                <Calendar className="mr-2 h-5 w-5" />
-                                Book Now
-                            </Button>
-                        </div>
-
                         {/* Stats */}
                         <div className="flex flex-wrap gap-8 pt-4">
                             <div>
@@ -54,7 +47,7 @@ export function BookingHero() {
                     <div className="relative">
                         <div className="relative rounded-2xl overflow-hidden">
                             <Image
-                                src="/hero-image.jpg" 
+                                src="/homepage.svg" 
                                 alt="Booking Interface" 
                                 width={800} 
                                 height={600}

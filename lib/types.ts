@@ -41,6 +41,7 @@ export interface CreateAppointmentRequest {
     notes: string
     organizationId: string
     slotId: string
+    phoneNumber: string
 }
 
 export interface CreateAppointmentResponse{
