@@ -38,6 +38,35 @@ export async function getStoreServicesBySlug(slug: string): Promise<PaginatedRes
     return await res.json();
 }
 
+export async function searchStoreServicesBySlug(
+    slug: string,
+    q: string,
+    page: number,
+    size: number
+): Promise<PaginatedResponse<Service>> {
+    const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString(),
+    });
+
+    if (q.trim().length > 0) {
+        params.set("q", q.trim());
+    }
+
+    const res = await fetch(`/api/store/${slug}/services?${params.toString()}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        }
+    });
+
+    if (!res.ok) {
+        throw new Error("Failed to fetch services");
+    }
+
+    return await res.json();
+}
+
 export async function getAvailableSlots(serviceId: string, dateSelected: Date): Promise<TimeSlot[]> {
     const formattedDate = new Date(dateSelected).toLocaleDateString('en-CA', {
         year: 'numeric',

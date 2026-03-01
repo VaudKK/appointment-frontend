@@ -12,7 +12,7 @@ import { AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {CreateAppointmentRequest, Service, TimeSlot} from "@/lib/types";
 import {useMutation} from "@tanstack/react-query";
-import {createBooking} from "@/lib/api/booking";
+import {checkMpesaPayment, createBooking, queryMpesaTransactionStatus} from "@/lib/api/booking";
 import TextAreaWithCount from "@/components/text-area-with-count";
 
 
@@ -33,9 +33,12 @@ type BookingFormValues = z.infer<typeof bookingSchema>
 
 export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
     const [showOTP, setShowOTP] = useState(false)
+    const [isPhoneVerified, setIsPhoneVerified] = useState(false)
     const [phoneNumber, setPhoneNumber] = useState("")
+    const [transactionId, setTransactionId] = useState("")
     const [bookingSuccess, setBookingSuccess] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submissionError, setSubmissionError] = useState("")
 
     const form = useForm<BookingFormValues>({
         resolver: zodResolver(bookingSchema),
@@ -52,13 +55,20 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
             setBookingSuccess(true)
             setIsSubmitting(false)
         },
-        onError: () => {
+        onError: (error: Error) => {
             setBookingSuccess(false)
             setIsSubmitting(false)
+            setSubmissionError(error.message || "Failed to complete booking")
         }
     })
 
+    const requiresDownPayment = Boolean(service.downPaymentRequired)
+    const downPaymentAmount = service.downPaymentAmount && service.downPaymentAmount > 0
+        ? service.downPaymentAmount
+        : service.price
+
     const addBooking = (booking: BookingFormValues) => {
+        setIsSubmitting(true)
         const bookingRequest: CreateAppointmentRequest = {
             customerName: booking.fullName,
             serviceId: service.id,
@@ -73,6 +83,7 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
 
 
     const onSubmit = async (values: BookingFormValues) => {
+        setSubmissionError("")
         setIsSubmitting(true)
         setPhoneNumber(values.phoneNumber)
         setShowOTP(true)
@@ -80,7 +91,78 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
 
     const handleOTPVerified = () => {
         setShowOTP(false)
+        setIsPhoneVerified(true)
+
+        if (requiresDownPayment) {
+            setIsSubmitting(false)
+            return
+        }
+
         addBooking(form.getValues())
+    }
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    const handleConfirmPayment = async () => {
+        if (!requiresDownPayment) {
+            addBooking(form.getValues())
+            return
+        }
+
+        const trimmedTransactionId = transactionId.trim()
+
+        if (!trimmedTransactionId) {
+            setSubmissionError("Enter your M-PESA transaction number before confirming payment")
+            return
+        }
+
+        if (!service.organizationId) {
+            setSubmissionError("Organization details are missing. Please try again later.")
+            return
+        }
+
+        if (downPaymentAmount <= 0) {
+            setSubmissionError("Invalid booking amount for payment confirmation")
+            return
+        }
+
+        setSubmissionError("")
+        setIsSubmitting(true)
+
+        try {
+            const queryResponse = await queryMpesaTransactionStatus({
+                organizationId: service.organizationId,
+                transactionid: trimmedTransactionId,
+                amount: downPaymentAmount,
+            })
+
+            if (queryResponse.ResponseCode !== "0") {
+                throw new Error(queryResponse.ResponseDescription || "Payment validation was not accepted")
+            }
+
+            let paymentConfirmed = false
+
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                const paymentStatus = await checkMpesaPayment(trimmedTransactionId)
+                if (paymentStatus.success) {
+                    paymentConfirmed = true
+                    break
+                }
+
+                if (attempt < 3) {
+                    await wait(3000)
+                }
+            }
+
+            if (!paymentConfirmed) {
+                throw new Error("Payment not confirmed yet. Wait a moment and try Confirm Payment again.")
+            }
+
+            addBooking(form.getValues())
+        } catch (error) {
+            setIsSubmitting(false)
+            setSubmissionError(error instanceof Error ? error.message : "Failed to confirm payment")
+        }
     }
 
     if (bookingSuccess) {
@@ -114,9 +196,70 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
         return <OTPVerification phoneNumber={phoneNumber} onVerified={handleOTPVerified} />
     }
 
+    if (isPhoneVerified && requiresDownPayment) {
+        return (
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">Complete Down Payment</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Your phone number has been verified. Confirm payment to complete this booking.
+                    </p>
+                </div>
+
+                {submissionError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{submissionError}</AlertDescription>
+                    </Alert>
+                )}
+
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        <span className="font-semibold">Amount:</span> KSh {downPaymentAmount.toLocaleString()}
+                    </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                    <p className="text-sm font-medium">Payment Instructions</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap rounded-md border border-border p-3 bg-muted/30">
+                        {service.paymentInstructions?.trim() || "Follow your provider instructions, then enter your M-PESA transaction number below."}
+                    </p>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">M-PESA Transaction Number</label>
+                    <Input
+                        placeholder="e.g. SGD3F7K2L9"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
+                        disabled={isSubmitting}
+                    />
+                </div>
+
+                <Button onClick={handleConfirmPayment} className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Confirming Payment...
+                        </>
+                    ) : (
+                        "Confirm Payment"
+                    )}
+                </Button>
+            </div>
+        )
+    }
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {submissionError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{submissionError}</AlertDescription>
+                    </Alert>
+                )}
                 {!service.available && (
                     <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />

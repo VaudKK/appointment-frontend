@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Clock, Calendar, Loader2 } from "lucide-react"
+import { MapPin, Clock, Calendar, Loader2, CircleDollarSign } from "lucide-react"
 import {Service, TimeSlot} from "@/lib/types";
 import {BookingDialog} from "@/components/booking-dialog";
 import {useEffect, useState} from "react";
@@ -90,6 +90,14 @@ export function ServiceCard({ service, storeSlug }: ServiceCardProps) {
                             {isAvailable ? "Available" : "Unavailable"}
                         </Badge>
                     </div>
+                    {service.downPaymentRequired && (
+                        <div className="absolute top-3 left-3">
+                            <Badge variant="secondary" className="shadow-md gap-1.5">
+                                <CircleDollarSign className="h-3.5 w-3.5" />
+                                Down Payment
+                            </Badge>
+                        </div>
+                    )}
                 </div>
 
                 <CardHeader className="space-y-2">

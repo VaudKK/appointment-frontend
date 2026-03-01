@@ -10,6 +10,9 @@ export interface Service {
     days: string[]
     slotsPerTimeDuration: number
     bufferTime: number
+    downPaymentRequired?: boolean
+    downPaymentAmount?: number
+    paymentInstructions?: string
     available: boolean
     createdAt: string // ISO date string
     updatedAt: string // ISO date string
@@ -92,8 +95,31 @@ export const serviceFormSchema = z.object({
     bufferTime: z.coerce.number().min(0, "Buffer time cannot be negative").optional().default(0),
     slotsPerTimeDuration: z.coerce.number().min(1, "Must have at least 1 slot"),
     price: z.coerce.number().min(0, "Price cannot be negative"),
+    downPaymentRequired: z.boolean().optional().default(false),
+    downPaymentAmount: z.coerce.number().min(0, "Down payment cannot be negative").optional().default(0),
+    paymentInstructions: z.string().max(1000, "Payment instructions must be at most 1000 characters").optional().default(""),
     location: z.string().min(1, "Location is required"),
     days: z.array(z.string()).min(1, "Select at least one day"),
+}).superRefine((values, ctx) => {
+    if (!values.downPaymentRequired) {
+        return
+    }
+
+    if (values.downPaymentAmount <= 0) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["downPaymentAmount"],
+            message: "Down payment amount must be greater than 0 when required",
+        })
+    }
+
+    if (values.downPaymentAmount > values.price * 0.5) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["downPaymentAmount"],
+            message: "Down payment cannot exceed 50% of the price",
+        })
+    }
 })
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>
@@ -108,6 +134,9 @@ export interface CreateServiceRequest {
     duration: number;
     locations: string;
     price: number;
+    downPaymentRequired?: boolean;
+    downPaymentAmount?: number;
+    paymentInstructions?: string;
     organizationId: string;
 }
 

@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {useMutation, useQuery} from "@tanstack/react-query";
 import {Appointment, PaginatedResponse} from "@/lib/types";
-import {cancelBooking, getOrganizationBookings} from "@/lib/api/booking";
+import {cancelBooking, getOrganizationBookings, searchOrganizationBookings} from "@/lib/api/booking";
 import {format, parseISO} from "date-fns";
 import Loader from "@/components/loader";
 import {authClient} from "@/lib/auth-client";
@@ -27,7 +27,10 @@ import { toast } from "sonner";
 
 
 function BookingsContent() {
-    const [searchPhone, setSearchPhone] = useState("")
+    const [slotInput, setSlotInput] = useState("")
+    const [searchSlot, setSearchSlot] = useState("")
+    const [dateFromInput, setDateFromInput] = useState("")
+    const [dateToInput, setDateToInput] = useState("")
     const [dateFrom, setDateFrom] = useState("")
     const [dateTo, setDateTo] = useState("")
     const [currentPage, setCurrentPage] = useState(1)
@@ -47,8 +50,21 @@ function BookingsContent() {
         error,
         refetch,
     } = useQuery<PaginatedResponse<Appointment>>({
-        queryKey: ["organizationBookings", 1,currentPage],
+        queryKey: ["organizationBookings", token, currentPage, currentPageSize, searchSlot, dateFrom, dateTo],
         queryFn: async () => {
+            const hasDateRange = dateFrom.length > 0 && dateTo.length > 0
+            const hasSearchFilters = searchSlot.trim().length > 0 || hasDateRange
+
+            if (hasSearchFilters) {
+                return searchOrganizationBookings(token ?? "", {
+                    slot: searchSlot,
+                    startDate: hasDateRange ? dateFrom : undefined,
+                    endDate: hasDateRange ? dateTo : undefined,
+                    page: currentPage,
+                    size: currentPageSize,
+                })
+            }
+
             return getOrganizationBookings(token ?? '',currentPage,currentPageSize)
         },
         enabled: !!token
@@ -138,19 +154,17 @@ function BookingsContent() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Phone Number Search */}
+                        {/* Slot Search */}
                         <div>
-                            <label className="text-sm font-medium text-foreground mb-2 block">Phone Number</label>
+                            <label className="text-sm font-medium text-foreground mb-2 block">Slot ID</label>
                             <div className="relative">
                                 <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                                 <Input
                                     type="text"
-                                    placeholder="Search by phone..."
-                                    value={searchPhone}
+                                    placeholder="Search by slot ID..."
+                                    value={slotInput}
                                     onChange={(e) => {
-                                        setSearchPhone(e.target.value)
-                                        setCurrentPage(1)
-                                        setCurrentPageSize(10)
+                                        setSlotInput(e.target.value)
                                     }}
                                     className="pl-10 bg-input border-border text-foreground placeholder:text-muted-foreground"
                                 />
@@ -164,11 +178,9 @@ function BookingsContent() {
                                 <Calendar className="absolute left-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
                                 <input
                                     type="date"
-                                    value={dateFrom}
+                                    value={dateFromInput}
                                     onChange={(e) => {
-                                        setDateFrom(e.target.value)
-                                        setCurrentPage(1)
-                                        setCurrentPageSize(10)
+                                        setDateFromInput(e.target.value)
                                     }}
                                     className="w-full pl-10 pr-3 py-2 bg-input border border-border rounded-md text-foreground text-sm"
                                 />
@@ -182,17 +194,48 @@ function BookingsContent() {
                                 <Calendar className="absolute left-3 top-3 w-4 h-4 text-muted-foreground pointer-events-none" />
                                 <input
                                     type="date"
-                                    value={dateTo}
+                                    value={dateToInput}
                                     onChange={(e) => {
-                                        setDateTo(e.target.value)
-                                        setCurrentPage(1)
-                                        setCurrentPageSize(10)
+                                        setDateToInput(e.target.value)
                                     }}
                                     className="w-full pl-10 pr-3 py-2 bg-input border border-border rounded-md text-foreground text-sm"
                                 />
                             </div>
                         </div>
                     </div>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setSlotInput("")
+                                setSearchSlot("")
+                                setDateFromInput("")
+                                setDateToInput("")
+                                setDateFrom("")
+                                setDateTo("")
+                                setCurrentPage(1)
+                                setCurrentPageSize(10)
+                            }}
+                        >
+                            Clear Search
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                setSearchSlot(slotInput.trim())
+                                setDateFrom(dateFromInput)
+                                setDateTo(dateToInput)
+                                setCurrentPage(1)
+                                setCurrentPageSize(10)
+                            }}
+                        >
+                            Search
+                        </Button>
+                    </div>
+                    {(dateFromInput.length > 0 || dateToInput.length > 0) && !(dateFromInput.length > 0 && dateToInput.length > 0) && (
+                        <p className="text-xs text-muted-foreground">
+                            Select both Date From and Date To to search by date range.
+                        </p>
+                    )}
                 </CardContent>
             </Card>
 
@@ -202,7 +245,7 @@ function BookingsContent() {
                     <CardTitle className="text-lg">Bookings List ({data?.totalElements} total)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {data?.content.length === 0 ? (
+                    {data?.content == null || data?.content.length === 0 ? (
                         <div className="flex items-center justify-center py-8 text-muted-foreground">
                             <AlertCircle className="w-5 h-5 mr-2" />
                             No bookings found

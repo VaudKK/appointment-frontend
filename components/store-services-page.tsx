@@ -8,7 +8,7 @@ import { ServiceCardSkeleton } from "@/components/service-card-skeleton";
 import { PaginatedResponse, Service } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { getStoreServicesBySlug } from "@/lib/api/services";
+import { searchStoreServicesBySlug } from "@/lib/api/services";
 import { Navbar } from "@/components/nav-bar";
 import FetchError from "@/components/fetch-error";
 
@@ -19,6 +19,9 @@ interface StoreServicesPageProps {
 export default function StoreServicesPage({ slug }: StoreServicesPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 12;
+    const normalizedSearchQuery = searchQuery.trim();
+    const activeSearchQuery = normalizedSearchQuery.length >= 3 ? normalizedSearchQuery : "";
 
     const {
         data,
@@ -26,8 +29,8 @@ export default function StoreServicesPage({ slug }: StoreServicesPageProps) {
         isError,
         error,
     } = useQuery<PaginatedResponse<Service>>({
-        queryKey: ["store-services", slug],
-        queryFn: () => getStoreServicesBySlug(slug),
+        queryKey: ["store-services", slug, currentPage, activeSearchQuery],
+        queryFn: () => searchStoreServicesBySlug(slug, activeSearchQuery, currentPage, PAGE_SIZE),
         enabled: !!slug,
     });
 
@@ -63,9 +66,12 @@ export default function StoreServicesPage({ slug }: StoreServicesPageProps) {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="text"
-                                    placeholder="Search services or location..."
+                                    placeholder="Search by service name or location"
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchQuery(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="pl-10"
                                 />
                             </div>
@@ -85,7 +91,8 @@ export default function StoreServicesPage({ slug }: StoreServicesPageProps) {
                                     </div>
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-border">
                                         <p className="text-sm text-muted-foreground">
-                                            Showing {data.content.length * data.page} to {Math.min(data.page * data.size, data.size)} of{" "}
+                                            Showing {(currentPage - 1) * data.size + 1} to{" "}
+                                            {Math.min((currentPage - 1) * data.size + data.content.length, data.totalElements)} of{" "}
                                             {data.totalElements} services
                                         </p>
 

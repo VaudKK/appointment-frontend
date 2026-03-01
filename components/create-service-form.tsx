@@ -2,7 +2,7 @@
 
 import {useEffect, useState} from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useWatch } from "react-hook-form"
 import {Loader2, Upload, X} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -88,11 +88,23 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
             bufferTime: initialService?.bufferTime ?? 0,
             slotsPerTimeDuration: initialService?.slotsPerTimeDuration ?? 1,
             price: initialService?.price ?? 0,
+            downPaymentRequired: initialService?.downPaymentRequired ?? false,
+            downPaymentAmount: initialService?.downPaymentAmount ?? 0,
+            paymentInstructions: initialService?.paymentInstructions ?? "",
             location: initialService?.location ?? "",
             days: initialService?.days ?? [],
             imageUrl: initialService ? new File([], "existing-image") : new File([], "")
         },
     })
+
+    const downPaymentRequired = useWatch({ control: form.control, name: "downPaymentRequired" })
+    const currentPrice = useWatch({ control: form.control, name: "price" })
+
+    useEffect(() => {
+        if (!downPaymentRequired) {
+            form.setValue("downPaymentAmount", 0, { shouldValidate: true })
+        }
+    }, [downPaymentRequired, form])
 
     const serviceMutation = useMutation({
         mutationFn: (req: CreateServiceRequest | UpdateServiceRequest) => {
@@ -149,6 +161,9 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
             duration: values.duration,
             description: values.description,
             price: values.price,
+            downPaymentRequired: values.downPaymentRequired ?? false,
+            downPaymentAmount: values.downPaymentRequired ? (values.downPaymentAmount ?? 0) : 0,
+            paymentInstructions: (values.paymentInstructions ?? "").trim(),
             locations: values.location,
             organizationId: session.user.organizationId,
             slotsPerTimeDuration: values.slotsPerTimeDuration,
@@ -322,6 +337,78 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                 )}
                             />
                         </div>
+
+                        {/* Down Payment */}                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="downPaymentRequired"
+                                render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-md border border-border p-3">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-foreground">Require Down Payment</FormLabel>
+                                            <FormDescription className="text-xs text-muted-foreground">
+                                                Enable to collect a partial payment before confirmation.
+                                            </FormDescription>
+                                        </div>
+                                        <FormControl>
+                                            <Checkbox
+                                                checked={field.value}
+                                                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                                                className="border-border"
+                                            />
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="downPaymentAmount"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-foreground">Down Payment Amount</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                type="number"
+                                                placeholder="0"
+                                                min="0"
+                                                max={Math.max(0, (Number(currentPrice) || 0) * 0.5)}
+                                                step="0.01"
+                                                disabled={!downPaymentRequired}
+                                                {...field}
+                                                className="bg-input border-border text-foreground placeholder:text-muted-foreground disabled:opacity-60"
+                                            />
+                                        </FormControl>
+                                        <FormDescription className="text-xs text-muted-foreground">
+                                            Maximum allowed: Ksh {((Number(currentPrice) || 0) * 0.5).toLocaleString()}
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                        <FormField
+                            control={form.control}
+                            name="paymentInstructions"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-foreground">Down Payment Instructions</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            maxLength={1000}
+                                            placeholder="Provide payment method and steps for making the down payment..."
+                                            disabled={!downPaymentRequired}
+                                            {...field}
+                                            className="bg-input border-border text-foreground placeholder:text-muted-foreground disabled:opacity-60"
+                                        />
+                                    </FormControl>
+                                    <FormDescription className="text-xs text-muted-foreground">
+                                        Include account details, reference format, and confirmation steps.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         {/* Location and Buffer Time */}
                             <FormField

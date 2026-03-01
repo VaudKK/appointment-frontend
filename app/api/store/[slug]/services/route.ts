@@ -34,6 +34,10 @@ async function resolveOrganizationId(slug: string): Promise<string | null> {
 
 export async function GET(r: Request, context: { params: Promise<{ slug: string }> }) {
     const { slug } = await context.params;
+    const requestUrl = new URL(r.url);
+    const q = requestUrl.searchParams.get("q")?.trim() ?? "";
+    const page = requestUrl.searchParams.get("page")?.trim();
+    const size = requestUrl.searchParams.get("size")?.trim();
 
     const resolvedOrganizationId = await resolveOrganizationId(slug);
     const organizationId = resolvedOrganizationId ?? (looksLikeOrganizationId(slug) ? slug : null);
@@ -42,7 +46,23 @@ export async function GET(r: Request, context: { params: Promise<{ slug: string 
         return NextResponse.json({ error: "Store not found" }, { status: 404 });
     }
 
-    const res = await fetch(`${BACKEND_URL}/api/v1/services/organization?id=${organizationId}`, {
+    const query = new URLSearchParams();
+    query.set("id", organizationId);
+
+    if (page) {
+        query.set("page", page);
+    }
+
+    if (size) {
+        query.set("size", size);
+    }
+
+    if (q.length > 0) {
+        query.set("q", q);
+    }
+
+    const apiPath = q.length > 0 ? "/api/v1/services/search" : "/api/v1/services/organization";
+    const res = await fetch(`${BACKEND_URL}${apiPath}?${query.toString()}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
