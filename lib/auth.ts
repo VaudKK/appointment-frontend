@@ -1,4 +1,4 @@
-import { betterAuth } from "better-auth";
+import { APIError, betterAuth } from "better-auth";
 import {mongodbAdapter} from "better-auth/adapters/mongodb";
 import db from "@/lib/mongodb";
 import {jwt} from "better-auth/plugins";
@@ -6,6 +6,25 @@ import {sendEmail} from "@/lib/api/mail";
 
 export const auth = betterAuth({
     database: mongodbAdapter(db),
+    databaseHooks: {
+        user:{
+            create: {
+                before: async (user) => {
+                    const existing = await db.collection("user").findOne({
+                        organizationSlug: user.organizationSlug
+                    });
+
+                    if(existing){
+                        throw new APIError("BAD_REQUEST",{
+                            message: "Store name already taken"
+                        })
+                    }
+
+                    return {data: user}
+                }
+            }
+        }
+    },
     emailVerification: {
         sendOnSignUp: true,
         sendVerificationEmail: async ({user,url}) => {

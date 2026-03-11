@@ -123,6 +123,7 @@ export const serviceFormSchema = z.object({
 })
 
 export type ServiceFormValues = z.infer<typeof serviceFormSchema>
+export type ServiceFormInput = z.input<typeof serviceFormSchema>
 
 export interface CreateServiceRequest {
     name: string;

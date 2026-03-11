@@ -1,8 +1,11 @@
+"use client"
+
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CalendarCheck2, TrendingUp, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import CookieConsent from "react-cookie-consent";
 
 const benefits = [
     {
@@ -107,6 +110,15 @@ export default function Home() {
                         <Link href="/admin/me/signup">Create Store Today</Link>
                     </Button>
                 </div>
+            </section>
+
+            <section>
+                <CookieConsent
+                    location="bottom"
+                    buttonText="I understand"
+                    >
+                    This website uses cookies to enhance the user experience.{" "}
+                </CookieConsent>
             </section>
         </main>
     );

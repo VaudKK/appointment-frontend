@@ -207,17 +207,24 @@ export default function SignupForm() {
         <p className="text-center text-xs text-muted-foreground px-4 mt-5">
           By signing up, you agree to our{" "}
           <Link
-            href="#"
+            href="/terms-of-use"
             className="text-primary hover:underline"
           >
             Terms of use
           </Link>{" "}
           and{" "}
           <Link
-            href="#"
+            href="/privacy-policy"
             className="text-primary hover:underline"
           >
             Privacy policy
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/store-owner-agreement"
+            className="text-primary hover:underline"
+          >
+            Store owner agreement
           </Link>
         </p>
       </div>

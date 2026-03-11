@@ -9,15 +9,26 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CreateServiceRequest, serviceFormSchema, Service, type ServiceFormValues, UpdateServiceRequest} from "@/lib/types"
-import { ScrollArea } from "./ui/scroll-area"
+import {
+    CreateServiceRequest,
+    serviceFormSchema,
+    Service,
+    type ServiceFormInput,
+    type ServiceFormValues,
+    UpdateServiceRequest
+} from "@/lib/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {useMutation} from "@tanstack/react-query";
 import {createService, updateService} from "@/lib/api/services";
 import {StatusAlertDialog} from "@/components/status-alert-dialog";
 import {authClient} from "@/lib/auth-client";
 import {getSignedImageUrl, uploadServiceImage} from "@/lib/api/files";
+import {fetchMpesaCredentials, MpesaCredentials} from "@/lib/api/mpesa";
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+const isMpesaConfigured = (credentials: MpesaCredentials) =>
+    Object.values(credentials).every((value) => value.trim().length > 0)
 
 interface CreateServiceFormProps {
     onCancel: () => void
@@ -26,7 +37,7 @@ interface CreateServiceFormProps {
     initialService?: Service | null
 }
 
-export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialService = null }: CreateServiceFormProps) {
+export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialService = null }: Readonly<CreateServiceFormProps>) {
     const [imagePreview, setImagePreview] = useState<string | null>(() => {
         const initialImage = initialService?.imageUrl ?? null
         if (!initialImage) {
@@ -79,7 +90,7 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
         }
     }, [initialService?.imageUrl, mode])
 
-    const form = useForm<ServiceFormValues>({
+    const form = useForm<ServiceFormInput, unknown, ServiceFormValues>({
         resolver: zodResolver(serviceFormSchema),
         defaultValues: {
             name: initialService?.name ?? "",
@@ -103,6 +114,7 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
     useEffect(() => {
         if (!downPaymentRequired) {
             form.setValue("downPaymentAmount", 0, { shouldValidate: true })
+            form.clearErrors("downPaymentRequired")
         }
     }, [downPaymentRequired, form])
 
@@ -124,33 +136,86 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
         }
     })
 
-    const onSubmit = async (values: ServiceFormValues) => {
+    const ensureOrganizationId = () => {
         if (!session?.user.organizationId) {
             setIsSubmitting(false)
-            return
+            return null
+        }
+        return session.user.organizationId
+    }
+
+    const ensureMpesaReady = async () => {
+        if (!token) {
+            form.setError("downPaymentRequired", {
+                type: "manual",
+                message: "Unable to verify M-Pesa credentials. Please try again.",
+            })
+            return false
         }
 
-        setIsSubmitting(true)
+        try {
+            const credentials = await fetchMpesaCredentials(token)
+            if (!isMpesaConfigured(credentials)) {
+                form.setError("downPaymentRequired", {
+                    type: "manual",
+                    message: "Set M-Pesa credentials in Settings before enabling down payment.",
+                })
+                return false
+            }
+        } catch {
+            form.setError("downPaymentRequired", {
+                type: "manual",
+                message: "Failed to verify M-Pesa credentials. Please try again.",
+            })
+            return false
+        }
 
+        return true
+    }
+
+    const resolveImageUrl = async (organizationId: string) => {
         let imageUrl = mode === "edit" ? (initialService?.imageUrl ?? "") : ""
 
         try {
             if (selectedImageFile) {
                 if (!token) {
                     setIsSubmitting(false)
-                    return
+                    return null
                 }
-                imageUrl = await uploadServiceImage(session.user.organizationId, selectedImageFile, token)
+                imageUrl = await uploadServiceImage(organizationId, selectedImageFile, token)
             } else if (mode === "create") {
                 form.setError("imageUrl", { message: "Please upload a service image" })
                 setIsSubmitting(false)
-                return
+                return null
             } else if (mode === "edit" && imagePreview === null) {
                 imageUrl = ""
             }
         } catch {
             form.setError("imageUrl", { message: "Failed to upload image" })
             setIsSubmitting(false)
+            return null
+        }
+
+        return imageUrl
+    }
+
+    const onSubmit = async (values: ServiceFormValues) => {
+        const organizationId = ensureOrganizationId()
+        if (!organizationId) {
+            return
+        }
+
+        if (values.downPaymentRequired) {
+            const isReady = await ensureMpesaReady()
+            if (!isReady) {
+                return
+            }
+        }
+
+        setIsSubmitting(true)
+
+        const imageUrl = await resolveImageUrl(organizationId)
+        if (imageUrl === null) {
             return
         }
 
@@ -165,7 +230,7 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
             downPaymentAmount: values.downPaymentRequired ? (values.downPaymentAmount ?? 0) : 0,
             paymentInstructions: (values.paymentInstructions ?? "").trim(),
             locations: values.location,
-            organizationId: session.user.organizationId,
+            organizationId,
             slotsPerTimeDuration: values.slotsPerTimeDuration,
             imageUrl
         }
@@ -306,12 +371,24 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                     <FormItem>
                                         <FormLabel className="text-foreground">Duration (minutes) *</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                placeholder="60"
-                                                {...field}
-                                                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-                                            />
+                                            {(() => {
+                                                const { value, onChange, ...fieldRest } = field
+                                                const normalizedValue: string | number =
+                                                    typeof value === "number" || typeof value === "string" ? value : ""
+                                                return (
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="60"
+                                                        value={normalizedValue}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value
+                                                            onChange(nextValue === "" ? undefined : Number(nextValue))
+                                                        }}
+                                                        {...fieldRest}
+                                                        className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                                    />
+                                                )
+                                            })()}
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -324,13 +401,25 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                     <FormItem>
                                         <FormLabel className="text-foreground">Price *</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                placeholder="500"
-                                                step="0.01"
-                                                {...field}
-                                                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-                                            />
+                                            {(() => {
+                                                const { value, onChange, ...fieldRest } = field
+                                                const normalizedValue: string | number =
+                                                    typeof value === "number" || typeof value === "string" ? value : ""
+                                                return (
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="500"
+                                                        step="0.01"
+                                                        value={normalizedValue}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value
+                                                            onChange(nextValue === "" ? undefined : Number(nextValue))
+                                                        }}
+                                                        {...fieldRest}
+                                                        className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                                    />
+                                                )
+                                            })()}
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -354,10 +443,14 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                         <FormControl>
                                             <Checkbox
                                                 checked={field.value}
-                                                onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                                                onCheckedChange={(checked) => {
+                                                    field.onChange(Boolean(checked))
+                                                    form.clearErrors("downPaymentRequired")
+                                                }}
                                                 className="border-border"
                                             />
                                         </FormControl>
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                             />
@@ -368,16 +461,28 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                     <FormItem>
                                         <FormLabel className="text-foreground">Down Payment Amount</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                placeholder="0"
-                                                min="0"
-                                                max={Math.max(0, (Number(currentPrice) || 0) * 0.5)}
-                                                step="0.01"
-                                                disabled={!downPaymentRequired}
-                                                {...field}
-                                                className="bg-input border-border text-foreground placeholder:text-muted-foreground disabled:opacity-60"
-                                            />
+                                            {(() => {
+                                                const { value, onChange, ...fieldRest } = field
+                                                const normalizedValue: string | number =
+                                                    typeof value === "number" || typeof value === "string" ? value : ""
+                                                return (
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="0"
+                                                        min="0"
+                                                        max={Math.max(0, (Number(currentPrice) || 0) * 0.5)}
+                                                        step="0.01"
+                                                        disabled={!downPaymentRequired}
+                                                        value={normalizedValue}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value
+                                                            onChange(nextValue === "" ? undefined : Number(nextValue))
+                                                        }}
+                                                        {...fieldRest}
+                                                        className="bg-input border-border text-foreground placeholder:text-muted-foreground disabled:opacity-60"
+                                                    />
+                                                )
+                                            })()}
                                         </FormControl>
                                         <FormDescription className="text-xs text-muted-foreground">
                                             Maximum allowed: Ksh {((Number(currentPrice) || 0) * 0.5).toLocaleString()}
@@ -436,12 +541,24 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                                     <FormItem>
                                         <FormLabel className="text-foreground">Buffer Time (minutes)</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="number"
-                                                placeholder="10"
-                                                {...field}
-                                                className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-                                            />
+                                            {(() => {
+                                                const { value, onChange, ...fieldRest } = field
+                                                const normalizedValue: string | number =
+                                                    typeof value === "number" || typeof value === "string" ? value : ""
+                                                return (
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="10"
+                                                        value={normalizedValue}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value
+                                                            onChange(nextValue === "" ? undefined : Number(nextValue))
+                                                        }}
+                                                        {...fieldRest}
+                                                        className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                                    />
+                                                )
+                                            })()}
                                         </FormControl>
                                         <FormDescription className="text-xs text-muted-foreground">
                                             Time between bookings for setup/cleanup
@@ -458,14 +575,26 @@ export function CreateServiceForm({ onCancel, onSaved, mode = "create", initialS
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-foreground">Slots Per Time Duration *</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            type="number"
-                                            placeholder="3"
-                                            {...field}
-                                            className="bg-input border-border text-foreground placeholder:text-muted-foreground"
-                                        />
-                                    </FormControl>
+                                        <FormControl>
+                                            {(() => {
+                                                const { value, onChange, ...fieldRest } = field
+                                                const normalizedValue: string | number =
+                                                    typeof value === "number" || typeof value === "string" ? value : ""
+                                                return (
+                                                    <Input
+                                                        type="number"
+                                                        placeholder="3"
+                                                        value={normalizedValue}
+                                                        onChange={(event) => {
+                                                            const nextValue = event.target.value
+                                                            onChange(nextValue === "" ? undefined : Number(nextValue))
+                                                        }}
+                                                        {...fieldRest}
+                                                        className="bg-input border-border text-foreground placeholder:text-muted-foreground"
+                                                    />
+                                                )
+                                            })()}
+                                        </FormControl>
                                     <FormDescription className="text-xs text-muted-foreground">
                                         Number of parallel bookings allowed per time slot
                                     </FormDescription>
