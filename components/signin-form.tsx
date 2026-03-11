@@ -1,0 +1,161 @@
+"use client"
+
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import Link from "next/link"
+import {authClient} from "@/lib/auth-client";
+import {toast} from "sonner";
+import {useState} from "react";
+
+const formSchema = z.object({
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: z.string()
+    .min(8, {
+      message: "Password must be at least 8 characters.",
+    })
+    .regex(/[a-z]/, {
+      message: "Password must include at least one lowercase letter.",
+    })
+    .regex(/[A-Z]/, {
+      message: "Password must include at least one uppercase letter.",
+    })
+    .regex(/[0-9]/, {
+      message: "Password must include at least one number.",
+    }),
+})
+
+type SignInFormValues = z.infer<typeof formSchema>
+
+export default function SignInForm() {
+      const form = useForm<SignInFormValues>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+          email: "",
+          password: "",
+        },
+      })
+
+    const [isSubmitting,setIsSubmitting] = useState(false);
+
+    const handleSignIn = async (values: SignInFormValues) => {
+
+        const email = values.email;
+        const password = values.password;
+
+        try {
+            const { data, error } = await authClient.signIn.email({
+                email,
+                password,
+                callbackURL: "/admin/dashboard/bookings",
+                rememberMe: false
+            }, {
+                //callbacks
+            })
+
+            if (error) {
+                toast.error(() => `${error.message}`)
+                return;
+            }
+
+            toast.success("Sign in successful");
+        } catch (err) {
+            toast.error(() => `Unexpected error during sign in: ${err}`)
+        }finally {
+            setIsSubmitting(false);
+            form.reset();
+        }
+    };
+
+    const onSubmit = async (values: SignInFormValues) => {
+        setIsSubmitting(true)
+        await handleSignIn(values);
+    };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-1 flex-col justify-center px-4 py-10 lg:px-6">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <h3 className="mt-2 text-center text-lg font-bold text-foreground dark:text-foreground">
+            Log In To Your Account
+          </h3>
+        </div>
+
+        <Card className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
+          <CardContent className="pt-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="Enter your email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          placeholder="Enter your password"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full mt-2" disabled={isSubmitting}>
+                    {isSubmitting ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+                Forgot Password? {" "}
+                <Link
+                    href="/admin/me/forgot-password"
+                    className="font-medium text-primary hover:underline"
+                >
+                    Reset Password
+                </Link>
+            </p>
+        </Card>
+
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account? {" "}
+          <Link
+            href="/admin/me/signup"
+            className="font-medium text-primary hover:underline"
+          >
+            Sign up
+          </Link>
+        </p>
+      </div>
+    </div>
+  )
+}

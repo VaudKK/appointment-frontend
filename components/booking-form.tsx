@@ -10,43 +10,42 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { OTPVerification } from "@/components/otp-verification"
 import { AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {CreateAppointmentRequest, Service} from "@/lib/types";
+import {CreateAppointmentRequest, Service, TimeSlot} from "@/lib/types";
 import {useMutation} from "@tanstack/react-query";
-import {createBooking} from "@/lib/api/booking";
+import {checkMpesaPayment, createBooking, queryMpesaTransactionStatus} from "@/lib/api/booking";
+import TextAreaWithCount from "@/components/text-area-with-count";
 
 
 interface BookingFormProps {
     service: Service
+    timeSlot: TimeSlot
     onSuccess?: () => void
+    storeSlug?: string
 }
 
 const bookingSchema = z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters"),
     phoneNumber: z.string().regex(/^(\+254|0)[0-9]{9}$/, "Please enter a valid Kenyan phone number (e.g., 0712345678)"),
-    date: z.string().refine((date) => {
-        const selectedDate = new Date(date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        return selectedDate >= today
-    }, "Please select a date from today onwards"),
-    time: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Please enter a valid time"),
+    notes: z.string()
 })
 
 type BookingFormValues = z.infer<typeof bookingSchema>
 
-export function BookingForm({ service }: BookingFormProps) {
+export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
     const [showOTP, setShowOTP] = useState(false)
+    const [isPhoneVerified, setIsPhoneVerified] = useState(false)
     const [phoneNumber, setPhoneNumber] = useState("")
+    const [transactionId, setTransactionId] = useState("")
     const [bookingSuccess, setBookingSuccess] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submissionError, setSubmissionError] = useState("")
 
     const form = useForm<BookingFormValues>({
         resolver: zodResolver(bookingSchema),
         defaultValues: {
             fullName: "",
             phoneNumber: "",
-            date: "",
-            time: "",
+            notes: "",
         },
     })
 
@@ -56,47 +55,35 @@ export function BookingForm({ service }: BookingFormProps) {
             setBookingSuccess(true)
             setIsSubmitting(false)
         },
-        onError: () => {
+        onError: (error: Error) => {
             setBookingSuccess(false)
             setIsSubmitting(false)
+            setSubmissionError(error.message || "Failed to complete booking")
         }
     })
 
+    const requiresDownPayment = Boolean(service.downPaymentRequired)
+    const downPaymentAmount = service.downPaymentAmount && service.downPaymentAmount > 0
+        ? service.downPaymentAmount
+        : service.price
+
     const addBooking = (booking: BookingFormValues) => {
+        setIsSubmitting(true)
         const bookingRequest: CreateAppointmentRequest = {
+            customerName: booking.fullName,
             serviceId: service.id,
-            appointmentTime: `${booking.date} ${booking.time}`,
-            notes: "",
+            notes: booking.notes,
             userId: null,
-            organizationId: service.organizationId
+            organizationId: service.organizationId,
+            slotId: timeSlot.slotId,
+            phoneNumber: phoneNumber
         }
         bookingMutation.mutate(bookingRequest)
     }
 
-    const validateDateTimeAvailability = (date: string, time: string): boolean => {
-        if (!date || !time) return false
-
-        const selectedDateTime = new Date(`${date}T${time}`)
-
-        // Check if it's within business hours (8 AM to 6 PM)
-        const hours = selectedDateTime.getHours()
-        if (hours < 8 || hours >= 18) {
-            return false
-        }
-
-        return true
-    }
 
     const onSubmit = async (values: BookingFormValues) => {
-        // Validate date/time availability
-        if (!validateDateTimeAvailability(values.date, values.time)) {
-            form.setError("time", {
-                type: "manual",
-                message: "Selected time is not available. Services operate 8 AM - 6 PM with at least 1 hour advance booking.",
-            })
-            return
-        }
-
+        setSubmissionError("")
         setIsSubmitting(true)
         setPhoneNumber(values.phoneNumber)
         setShowOTP(true)
@@ -104,7 +91,78 @@ export function BookingForm({ service }: BookingFormProps) {
 
     const handleOTPVerified = () => {
         setShowOTP(false)
+        setIsPhoneVerified(true)
+
+        if (requiresDownPayment) {
+            setIsSubmitting(false)
+            return
+        }
+
         addBooking(form.getValues())
+    }
+
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    const handleConfirmPayment = async () => {
+        if (!requiresDownPayment) {
+            addBooking(form.getValues())
+            return
+        }
+
+        const trimmedTransactionId = transactionId.trim()
+
+        if (!trimmedTransactionId) {
+            setSubmissionError("Enter your M-PESA transaction number before confirming payment")
+            return
+        }
+
+        if (!service.organizationId) {
+            setSubmissionError("Organization details are missing. Please try again later.")
+            return
+        }
+
+        if (downPaymentAmount <= 0) {
+            setSubmissionError("Invalid booking amount for payment confirmation")
+            return
+        }
+
+        setSubmissionError("")
+        setIsSubmitting(true)
+
+        try {
+            const queryResponse = await queryMpesaTransactionStatus({
+                organizationId: service.organizationId,
+                transactionid: trimmedTransactionId,
+                amount: downPaymentAmount,
+            })
+
+            if (queryResponse.ResponseCode !== "0") {
+                throw new Error(queryResponse.ResponseDescription || "Payment validation was not accepted")
+            }
+
+            let paymentConfirmed = false
+
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                const paymentStatus = await checkMpesaPayment(trimmedTransactionId)
+                if (paymentStatus.success) {
+                    paymentConfirmed = true
+                    break
+                }
+
+                if (attempt < 3) {
+                    await wait(3000)
+                }
+            }
+
+            if (!paymentConfirmed) {
+                throw new Error("Payment not confirmed yet. Wait a moment and try Confirm Payment again.")
+            }
+
+            addBooking(form.getValues())
+        } catch (error) {
+            setIsSubmitting(false)
+            setSubmissionError(error instanceof Error ? error.message : "Failed to confirm payment")
+        }
     }
 
     if (bookingSuccess) {
@@ -122,15 +180,12 @@ export function BookingForm({ service }: BookingFormProps) {
                     <p className="text-sm mb-2">
                         <span className="font-semibold">Location:</span> {service.location}
                     </p>
-                    <p className="text-sm mb-2">
-                        <span className="font-semibold">Date & Time:</span> {form.getValues("date")} at {form.getValues("time")}
-                    </p>
                     <p className="text-sm">
                         <span className="font-semibold">Total Amount:</span> KSh{" "}
                         {(service.price).toLocaleString()}
                     </p>
                 </div>
-                <Button onClick={() => (window.location.href = "/services")} className="w-full">
+                <Button onClick={() => (window.location.href = storeSlug ? `/store/${storeSlug}/services` : "/services")} className="w-full">
                     Back to Services
                 </Button>
             </div>
@@ -141,9 +196,70 @@ export function BookingForm({ service }: BookingFormProps) {
         return <OTPVerification phoneNumber={phoneNumber} onVerified={handleOTPVerified} />
     }
 
+    if (isPhoneVerified && requiresDownPayment) {
+        return (
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold mb-2">Complete Down Payment</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Your phone number has been verified. Confirm payment to complete this booking.
+                    </p>
+                </div>
+
+                {submissionError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{submissionError}</AlertDescription>
+                    </Alert>
+                )}
+
+                <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        <span className="font-semibold">Amount:</span> KSh {downPaymentAmount.toLocaleString()}
+                    </AlertDescription>
+                </Alert>
+
+                <div className="space-y-2">
+                    <p className="text-sm font-medium">Payment Instructions</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap rounded-md border border-border p-3 bg-muted/30">
+                        {service.paymentInstructions?.trim() || "Follow your provider instructions, then enter your M-PESA transaction number below."}
+                    </p>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">M-PESA Transaction Number</label>
+                    <Input
+                        placeholder="e.g. SGD3F7K2L9"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
+                        disabled={isSubmitting}
+                    />
+                </div>
+
+                <Button onClick={handleConfirmPayment} className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Confirming Payment...
+                        </>
+                    ) : (
+                        "Confirm Payment"
+                    )}
+                </Button>
+            </div>
+        )
+    }
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {submissionError && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{submissionError}</AlertDescription>
+                    </Alert>
+                )}
                 {!service.available && (
                     <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
@@ -180,49 +296,23 @@ export function BookingForm({ service }: BookingFormProps) {
                     )}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="date"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Date</FormLabel>
-                                <input
-                                    type="date"
-                                    {...field}
-                                    defaultValue={new Date().toISOString().split("T")[0]}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                <FormDescription>Select a date from today onwards</FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    <FormField
-                        control={form.control}
-                        name="time"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Time</FormLabel>
-                                <input
-                                    type="time"
-                                    {...field}
-                                    step={900}
-                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                />
-                                <FormDescription>Business hours: 8 AM - 6 PM</FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
+                <FormField control={form.control}
+                           name={"notes"}
+                           render={({ field }) => (
+                               <FormItem>
+                                   <FormControl>
+                                       <TextAreaWithCount maxLength={300} {...field}/>
+                                   </FormControl>
+                                   <FormMessage />
+                               </FormItem>
+                           )}
+                />
 
                 {/*{service.requiresDownPayment && (*/}
                 {/*    <Alert>*/}
                 {/*        <AlertCircle className="h-4 w-4" />*/}
                 {/*        <AlertDescription>*/}
-                {/*            A down payment of KSh {(service.price * 0.5).toLocaleString()} (50%) is required to confirm this booking.*/}
+                {/*            A down payment of KSh {(service.price * 0.5).toLocaleString()} (50%) is required to confirm this bookings.*/}
                 {/*        </AlertDescription>*/}
                 {/*    </Alert>*/}
                 {/*)}*/}

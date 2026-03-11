@@ -1,125 +1,233 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+"use client"
+
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+import { useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import Link from "next/link"
+import {authClient} from "@/lib/auth-client";
+import {toast} from "sonner";
+
+const formSchema = z.object({
+  username: z.string()
+    .min(2, {
+      message: "Username must be at least 2 characters.",
+    })
+    .max(100, {
+      message: "Username must not be longer than 100 characters.",
+    }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  organizationSlug: z.string()
+    .min(3, {
+      message: "Store slug must be at least 3 characters.",
+    })
+    .max(64, {
+      message: "Store slug must not be longer than 64 characters.",
+    })
+    .regex(/^[a-z0-9-]+$/, {
+      message: "Store slug can only contain lowercase letters, numbers, and hyphens.",
+    }),
+  password: z.string()
+    .min(8, {
+      message: "Password must be at least 8 characters.",
+    })
+    .regex(/[a-z]/, {
+      message: "Password must include at least one lowercase letter.",
+    })
+    .regex(/[A-Z]/, {
+      message: "Password must include at least one uppercase letter.",
+    })
+    .regex(/[0-9]/, {
+      message: "Password must include at least one number.",
+    }),
+})
+
+type SignupFormValues = z.infer<typeof formSchema>
+
 
 
 export default function SignupForm() {
-    return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="flex flex-1 flex-col justify-center px-4 py-10 lg:px-6">
-                <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                    <h3 className="mt-2 text-center text-lg font-bold text-foreground dark:text-foreground">
-                        Create New Account
-                    </h3>
-                </div>
-
-                <Card className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
-                    <CardContent>
-                        <form action="#" method="post" className="space-y-4">
-                            <div>
-                                <Label
-                                    htmlFor="fullname"
-                                    className="text-sm font-medium text-foreground dark:text-foreground"
-                                >
-                                    Name
-                                </Label>
-                                <Input
-                                    type="text"
-                                    id="fullname"
-                                    name="fullname"
-                                    autoComplete="fullname"
-                                    placeholder="Full Names"
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="email"
-                                    className="text-sm font-medium text-foreground dark:text-foreground"
-                                >
-                                    Email
-                                </Label>
-                                <Input
-                                    type="text"
-                                    id="phone"
-                                    name="phone"
-                                    autoComplete="phone"
-                                    placeholder="0712345678"
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="password"
-                                    className="text-sm font-medium text-foreground dark:text-foreground"
-                                >
-                                    Password
-                                </Label>
-                                <Input
-                                    type="password"
-                                    id="password"
-                                    name="password"
-                                    autoComplete="password"
-                                    placeholder="Password"
-                                    className="mt-2"
-                                />
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="confirm-password"
-                                    className="text-sm font-medium text-foreground dark:text-foreground"
-                                >
-                                    Confirm password
-                                </Label>
-                                <Input
-                                    type="password"
-                                    id="confirm-password"
-                                    name="confirm-password"
-                                    autoComplete="confirm-password"
-                                    placeholder="Password"
-                                    className="mt-2"
-                                />
-                            </div>
 
 
-                            <Button type="submit" className="mt-4 w-full py-2 font-medium">
-                                Create account
-                            </Button>
+  const form = useForm<SignupFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      username: "",
+      email: "",
+      organizationSlug: "",
+      password: "",
+    },
+  })
 
-                            <p className="text-center text-xs text-muted-foreground dark:text-muted-foreground">
-                                By signing in, you agree to our{" "}
-                                <a
-                                    href="#"
-                                    className="capitalize text-primary hover:text-primary/90 dark:text-primary hover:dark:text-primary/90"
-                                >
-                                    Terms of use
-                                </a>{" "}
-                                and{" "}
-                                <a
-                                    href="#"
-                                    className="capitalize text-primary hover:text-primary/90 dark:text-primary hover:dark:text-primary/90"
-                                >
-                                    Privacy policy
-                                </a>
-                            </p>
-                        </form>
-                    </CardContent>
-                </Card>
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
-                <p className="mt-6 text-center text-sm text-muted-foreground dark:text-muted-foreground">
-                    Already have an account?{" "}
-                    <a
-                        href="#"
-                        className="font-medium text-primary hover:text-primary/90 dark:text-primary hover:dark:text-primary/90"
-                    >
-                        Sign in
-                    </a>
-                </p>
-            </div>
+    const handleSignUp = async (values: SignupFormValues) => {
+
+        const email = values.email;
+        const password = values.password;
+        const name = values.username;
+        const organizationSlug = values.organizationSlug.trim().toLowerCase();
+        const organizationId = z.uuid().parse(crypto.randomUUID()).toString();
+
+        try {
+            const { error } = await authClient.signUp.email({
+                email,
+                name,
+                password,
+                organizationId,
+                organizationSlug,
+                callbackURL: "/admin/me/verification",
+            }, {
+            })
+
+            if (error) {
+                toast.error(() => `${error.message}`)
+                return;
+            }
+
+            toast.success("Verification link has been sent to your email");
+
+        } catch (err) {
+            toast.error(() => `Unexpected error during sign in: ${err}`)
+        }finally {
+            setIsSubmitting(false);
+            form.reset();
+        }
+    };
+
+
+  const onSubmit = async (values: SignupFormValues) => {
+      setIsSubmitting(true)
+      await handleSignUp(values)
+  }
+
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex-1 px-4 py-10 lg:px-6">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <h2 className="mt-2 text-center text-2xl font-bold text-foreground">
+            Create an account
+          </h2>
         </div>
-    );
+
+        <Card className="mt-4 sm:mx-auto sm:w-full sm:max-w-md">
+          <CardContent className="pt-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="johndoe" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="email@example.com" type="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="organizationSlug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Store Slug</FormLabel>
+                      <FormControl>
+                        <Input placeholder="my-store" {...field} />
+                      </FormControl>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        This becomes your store URL: /store/{field.value || "my-store"}/home
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input placeholder={"password"} type="password" {...field} />
+                      </FormControl>
+                    <div className="text-xs text-muted-foreground mt-1">
+                        Must be at least 8 characters with uppercase, lowercase, and a number
+                    </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing up...' : 'Sign Up'}
+                </Button>
+              </form>
+            </Form>
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <Link
+                href="/admin/me/signin"
+                className="font-medium text-primary hover:underline"
+              >
+                Sign in
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground px-4 mt-5">
+          By signing up, you agree to our{" "}
+          <Link
+            href="/terms-of-use"
+            className="text-primary hover:underline"
+          >
+            Terms of use
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy-policy"
+            className="text-primary hover:underline"
+          >
+            Privacy policy
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/store-owner-agreement"
+            className="text-primary hover:underline"
+          >
+            Store owner agreement
+          </Link>
+        </p>
+      </div>
+    </div>
+  )
 }
