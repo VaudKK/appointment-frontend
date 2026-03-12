@@ -10,7 +10,11 @@ export async function sendEmail(sendMailRequest: SendMailRequest): Promise<SendM
         throw new Error("Missing base URL for mail API (BETTER_AUTH_URL or BASE_URL or NEXT_PUBLIC_APP_URL).")
     }
 
-    const res = await fetch(new URL("/api/mail/send", baseUrl), {
+    const endpoint = new URL("/api/mail/send", baseUrl)
+    console.log("[mail] sendEmail baseUrl:", baseUrl)
+    console.log("[mail] sendEmail endpoint:", endpoint.toString())
+
+    const res = await fetch(endpoint, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
