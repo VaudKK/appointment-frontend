@@ -8,6 +8,7 @@ export const auth = betterAuth({
     trustedOrigins: [
         "https://kwawakati.up.railway.app",
         "http://appointment-frontend.railway.internal",
+        "http://localhost:8080",
     ],
     database: mongodbAdapter(db),
     databaseHooks: {
