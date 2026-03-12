@@ -13,6 +13,9 @@ export async function POST(r: NextRequest){
         body: JSON.stringify(body)
     })
 
+    const raw = await res.clone().text()
+    console.log("[mail] backend raw response:", raw)
+
     const data = await res.json()
     return NextResponse.json(data,{status: res.status})
 }
