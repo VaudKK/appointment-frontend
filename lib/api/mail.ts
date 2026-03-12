@@ -22,6 +22,9 @@ export async function sendEmail(sendMailRequest: SendMailRequest): Promise<SendM
         body: JSON.stringify(sendMailRequest)
     })
 
+    const raw = await res.clone().text()
+    console.log("[mail] backend raw response:", raw)
+
     if (!res.ok) {
         throw new Error("Failed to send email")
     }
