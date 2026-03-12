@@ -95,7 +95,6 @@ export default function SignupForm() {
             })
 
             if (error) {
-                console.log(error)
                 toast.error(() => `${error.message}`)
                 return;
             }

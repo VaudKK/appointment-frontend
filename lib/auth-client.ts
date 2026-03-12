@@ -1,8 +1,10 @@
 import { createAuthClient } from "better-auth/react"
 import { inferAdditionalFields, jwtClient } from "better-auth/client/plugins"
 
+const baseUrl = process.env.BETTER_AUTH_URL
+
 export const authClient = createAuthClient({
-    baseURL: "http://localhost:3000",
+    baseURL: baseUrl,
     plugins: [jwtClient(),inferAdditionalFields({
       user: {
         organizationId: {
