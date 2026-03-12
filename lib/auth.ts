@@ -5,6 +5,10 @@ import {jwt} from "better-auth/plugins";
 import {sendEmail} from "@/lib/api/mail";
 
 export const auth = betterAuth({
+    trustedOrigins: [
+        "https://kwawakati.up.railway.app",
+        "http://appointment-frontend.railway.internal",
+    ],
     database: mongodbAdapter(db),
     databaseHooks: {
         user:{
