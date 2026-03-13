@@ -35,13 +35,13 @@ export default function Home() {
     return (
         <main className="min-h-screen bg-linear-to-b from-background to-muted/30">
             <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur">
-                <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+                <div className="container mx-auto px-4 flex flex-col gap-3 py-3 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:py-0">
                     <div className="text-2xl font-bold text-primary">KwaWakati</div>
-                    <div className="flex items-center gap-3">
-                        <Button variant="outline" asChild>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <Button variant="outline" className="w-full sm:w-auto" asChild>
                             <Link href="/admin/me/signin">Sign In</Link>
                         </Button>
-                        <Button asChild>
+                        <Button className="w-full sm:w-auto" asChild>
                             <Link href="/admin/me/signup">Create Store Today</Link>
                         </Button>
                     </div>

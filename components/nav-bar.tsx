@@ -56,12 +56,6 @@ export function Navbar({ storeSlug }: NavbarProps) {
                                 <Link href={servicesHref} className="text-lg font-medium hover:text-primary transition-colors">
                                     Services
                                 </Link>
-                                <div className="flex flex-col gap-3 mt-4">
-                                    <Button variant="outline" className="w-full bg-transparent">
-                                        Log In
-                                    </Button>
-                                    <Button className="w-full">Sign Up</Button>
-                                </div>
                             </nav>
                         </SheetContent>
                     </Sheet>
