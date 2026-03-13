@@ -5,9 +5,10 @@ import {
     PaginatedResponse,
 } from "@/lib/types";
 import {enforceAdminAuthOrRedirect} from "@/lib/api/admin-auth-redirect";
+import { buildBackendUrl } from "@/lib/api/backend";
 
 export async function createBooking(booking: CreateAppointmentRequest): Promise<CreateAppointmentResponse> {
-    const res = await fetch(`/api/appointments/create`,{
+    const res = await fetch(buildBackendUrl("/api/v1/appointments/create"),{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -23,7 +24,7 @@ export async function createBooking(booking: CreateAppointmentRequest): Promise<
 }
 
 export async function sendOTP(phoneNumber: string,channel: string): Promise<{sessionId: string}>{
-    const res = await fetch(`/api/otp/send?channel=${channel}`,{
+    const res = await fetch(buildBackendUrl("/api/v1/otp/send", { channel }),{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -41,7 +42,7 @@ export async function sendOTP(phoneNumber: string,channel: string): Promise<{ses
 }
 
 export async function verifyOTP(sessionId: string, otp: string): Promise<{success: boolean}>{
-    const res = await fetch(`/api/otp/verify`,{
+    const res = await fetch(buildBackendUrl("/api/v1/otp/verify"),{
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -74,7 +75,7 @@ export interface MpesaTransactionStatusQueryResponse {
 export async function queryMpesaTransactionStatus(
     payload: MpesaTransactionStatusQueryRequest
 ): Promise<MpesaTransactionStatusQueryResponse> {
-    const res = await fetch(`/api/mpesa/transaction-status-query`, {
+    const res = await fetch(buildBackendUrl("/api/v1/mpesa/transaction-status-query"), {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -93,8 +94,7 @@ export async function queryMpesaTransactionStatus(
 }
 
 export async function checkMpesaPayment(transactionId: string): Promise<{ success: boolean }> {
-    const query = new URLSearchParams({ trx: transactionId })
-    const res = await fetch(`/api/mpesa/check-payment?${query.toString()}`, {
+    const res = await fetch(buildBackendUrl("/api/v1/mpesa/check-payment", { trx: transactionId }), {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -112,7 +112,10 @@ export async function checkMpesaPayment(transactionId: string): Promise<{ succes
 }
 
 export async function getOrganizationBookings(token: string,page: number, size: number): Promise<PaginatedResponse<Appointment>> {
-    const res = await fetch(`/api/admin/bookings?page=${page}&size=${size}`,{
+    const res = await fetch(buildBackendUrl("/api/v1/appointments/organization", {
+        page: page.toString(),
+        size: size.toString(),
+    }),{
         method: "GET",
         credentials: "include",
         headers: {
@@ -142,24 +145,24 @@ export async function searchOrganizationBookings(
     token: string,
     params: SearchOrganizationBookingsParams
 ): Promise<PaginatedResponse<Appointment>> {
-    const query = new URLSearchParams({
+    const queryParams: Record<string, string> = {
         page: params.page.toString(),
         size: params.size.toString(),
-    })
+    }
 
     if (params.slot?.trim()) {
-        query.set("slot", params.slot.trim())
+        queryParams.slot = params.slot.trim()
     }
 
     if (params.startDate?.trim()) {
-        query.set("startDate", params.startDate.trim())
+        queryParams.startDate = params.startDate.trim()
     }
 
     if (params.endDate?.trim()) {
-        query.set("endDate", params.endDate.trim())
+        queryParams.endDate = params.endDate.trim()
     }
 
-    const res = await fetch(`/api/admin/bookings/search?${query.toString()}`,{
+    const res = await fetch(buildBackendUrl("/api/v1/appointments/search", queryParams),{
         method: "GET",
         credentials: "include",
         headers: {
@@ -178,7 +181,7 @@ export async function searchOrganizationBookings(
 }
 
 export async function cancelBooking(token: string, bookingId: string): Promise<void> {
-    const res = await fetch(`/api/admin/bookings/cancel`,{
+    const res = await fetch(buildBackendUrl("/api/v1/appointments/cancel"),{
         method: "POST",
         credentials: "include",
         headers: {

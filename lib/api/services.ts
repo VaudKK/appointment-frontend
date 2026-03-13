@@ -6,10 +6,37 @@ import {
     UpdateServiceRequest
 } from "@/lib/types";
 import {enforceAdminAuthOrRedirect} from "@/lib/api/admin-auth-redirect";
+import { buildBackendUrl, getOrganizationResolvePath } from "@/lib/api/backend";
+
+function looksLikeOrganizationId(slug: string): boolean {
+    return /^[0-9a-fA-F-]{32,36}$/.test(slug);
+}
+
+async function resolveOrganizationId(slug: string): Promise<string | null> {
+    if (looksLikeOrganizationId(slug)) {
+        return slug;
+    }
+
+    const resolveUrl = buildBackendUrl(getOrganizationResolvePath(), { slug });
+    const res = await fetch(resolveUrl, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        return null;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    const organizationId = data?.organizationId ?? data?.id ?? null;
+    return typeof organizationId === "string" ? organizationId : null;
+}
 
 export async function getOrganizationServices(organizationId: string): Promise<PaginatedResponse<Service>> {
 
-    const res = await fetch(`/api/services/${organizationId}`,{
+    const res = await fetch(buildBackendUrl("/api/v1/services/organization", { id: organizationId }),{
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -24,7 +51,13 @@ export async function getOrganizationServices(organizationId: string): Promise<P
 }
 
 export async function getStoreServicesBySlug(slug: string): Promise<PaginatedResponse<Service>> {
-    const res = await fetch(`/api/store/${slug}/services`, {
+    const organizationId = await resolveOrganizationId(slug);
+
+    if (!organizationId) {
+        throw new Error("Store not found");
+    }
+
+    const res = await fetch(buildBackendUrl("/api/v1/services/organization", { id: organizationId }), {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -44,16 +77,24 @@ export async function searchStoreServicesBySlug(
     page: number,
     size: number
 ): Promise<PaginatedResponse<Service>> {
-    const params = new URLSearchParams({
-        page: page.toString(),
-        size: size.toString(),
-    });
+    const organizationId = await resolveOrganizationId(slug);
 
-    if (q.trim().length > 0) {
-        params.set("q", q.trim());
+    if (!organizationId) {
+        throw new Error("Store not found");
     }
 
-    const res = await fetch(`/api/store/${slug}/services?${params.toString()}`, {
+    const params: Record<string, string> = {
+        id: organizationId,
+        page: page.toString(),
+        size: size.toString(),
+    };
+
+    if (q.trim().length > 0) {
+        params.q = q.trim();
+    }
+
+    const apiPath = q.trim().length > 0 ? "/api/v1/services/search" : "/api/v1/services/organization";
+    const res = await fetch(buildBackendUrl(apiPath, params), {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -75,7 +116,10 @@ export async function getAvailableSlots(serviceId: string, dateSelected: Date): 
         timeZone: 'Africa/Nairobi'
     }).replace(/\//g, '-');
 
-    const res = await fetch(`/api/services/slots/${serviceId}/${formattedDate}`,{
+    const res = await fetch(buildBackendUrl("/api/v1/services/slots", {
+        service_id: serviceId,
+        date: formattedDate,
+    }),{
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -90,7 +134,7 @@ export async function getAvailableSlots(serviceId: string, dateSelected: Date): 
 }
 
 export async function createService(newService: CreateServiceRequest,token: string): Promise<CreateServiceResponse> {
-    const res = await fetch(`/api/admin/services/create`,{
+    const res = await fetch(buildBackendUrl("/api/v1/services/create"),{
         method: "POST",
         credentials: "include",
         headers: {
@@ -111,7 +155,7 @@ export async function createService(newService: CreateServiceRequest,token: stri
 
 export async function updateService(service: UpdateServiceRequest, token: string): Promise<CreateServiceResponse> {
 
-    const res = await fetch(`/api/admin/services/update`, {
+    const res = await fetch(buildBackendUrl("/api/v1/services/update"), {
         method: "POST",
         credentials: "include",
         headers: {

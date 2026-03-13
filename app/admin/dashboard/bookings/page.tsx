@@ -94,6 +94,10 @@ function BookingsContent() {
     }
 
     const openCancelDialog = (booking: Appointment) => {
+        if (booking.downPaymentAmount > 0) {
+            toast.error("This booking has a down payment and cannot be cancelled.")
+            return
+        }
         setBookingToCancel(booking)
         setCancelError(null)
         setIsCancelDialogOpen(true)
@@ -120,6 +124,11 @@ function BookingsContent() {
 
     const confirmCancelBooking = async () => {
         if (!bookingToCancel) {
+            return
+        }
+
+        if (bookingToCancel.downPaymentAmount > 0) {
+            setCancelError("Bookings with a down payment cannot be cancelled.")
             return
         }
         await cancelBookingMutation.mutateAsync(bookingToCancel.id)
@@ -294,7 +303,7 @@ function BookingsContent() {
                                                             variant="destructive"
                                                             size="sm"
                                                             className="gap-2"
-                                                            disabled={booking.status === "Cancelled"}
+                                                            disabled={booking.status === "Cancelled" || booking.downPaymentAmount > 0}
                                                             onClick={() => openCancelDialog(booking)}
                                                         >
                                                             Cancel

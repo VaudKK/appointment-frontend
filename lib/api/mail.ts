@@ -2,12 +2,12 @@
 
 
 import { SendMailRequest, SendMailResponse } from "@/lib/types"
+import { buildBackendUrl } from "@/lib/api/backend"
 
 
 export async function sendEmail(sendMailRequest: SendMailRequest): Promise<SendMailResponse> {
-    const endpoint = new URL("/api/mail/send", process.env.NEXT_PUBLIC_APP_URL)
-    console.log("[mail] sendEmail baseUrl:", process.env.NEXT_PUBLIC_APP_URL)
-    console.log("[mail] sendEmail endpoint:", endpoint.toString())
+    const endpoint = buildBackendUrl("/api/v1/mail/send")
+    console.log("[mail] sendEmail endpoint:", endpoint)
 
     const res = await fetch(endpoint, {
         method: "POST",

@@ -1,4 +1,5 @@
 import { enforceAdminAuthOrRedirect } from "@/lib/api/admin-auth-redirect";
+import { buildBackendUrl } from "@/lib/api/backend";
 
 export type MpesaCredentials = {
     consumerKey: string;
@@ -27,7 +28,7 @@ function normalizeCredentials(data: MpesaCredentialsResponse | null | undefined)
 }
 
 export async function fetchMpesaCredentials(token: string): Promise<MpesaCredentials> {
-    const res = await fetch("/api/admin/mps/credentials/fetch", {
+    const res = await fetch(buildBackendUrl("/api/v1/organizations/mps/credentials/fetch"), {
         method: "GET",
         credentials: "include",
         headers: {
@@ -55,7 +56,7 @@ export async function registerMpesaCredentials(
     organizationId: string,
     credentials: MpesaCredentials
 ): Promise<void> {
-    const res = await fetch("/api/admin/mps/credentials/register", {
+    const res = await fetch(buildBackendUrl("/api/v1/organizations/mps/credentials/register"), {
         method: "POST",
         credentials: "include",
         headers: {

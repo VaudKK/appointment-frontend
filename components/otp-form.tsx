@@ -22,6 +22,10 @@ export default function OtpForm({subject,onOtpVerified}: OtpProps) {
     const [isVerifying, setIsVerifying] = useState(false);
     const [loading,setIsLoading] = useState(false)
 
+    const normalizePhoneNumber = (input: string) => input.replace(/\s+/g, "");
+
+    const isValidPhoneNumber = (input: string) => /^\+254[17]\d{8}$/.test(input);
+
     useEffect(() => {
         if (timeLeft > 0) {
             const timer = setTimeout(() => {
@@ -33,8 +37,16 @@ export default function OtpForm({subject,onOtpVerified}: OtpProps) {
     }, [timeLeft])
 
     useEffect(() => {
+        const normalized = normalizePhoneNumber(subject)
+
+        if (!isValidPhoneNumber(normalized)) {
+            setError("Phone number must be in format +2541XXXXXXXX or +2547XXXXXXXX.")
+            setIsLoading(false)
+            return
+        }
+
         setIsLoading(true)
-        sendOtpMutation.mutate(subject)
+        sendOtpMutation.mutate(normalized)
     }, [])
 
     const formatTime = (seconds: number) => {

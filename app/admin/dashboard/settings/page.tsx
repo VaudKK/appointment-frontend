@@ -98,6 +98,7 @@ export default function SettingsPage() {
         loadCredentials();
     }, [token]);
 
+
     const updateCredentialField = (field: keyof MpesaCredentials, value: string) => {
         setMpesaCredentials((current) => ({
             ...current,
@@ -127,6 +128,7 @@ export default function SettingsPage() {
             setIsSavingMpesa(false);
         }
     };
+
 
     const credentialFields: Array<{
         key: keyof MpesaCredentials;
@@ -245,6 +247,7 @@ export default function SettingsPage() {
                     )}
                 </CardContent>
             </Card>
+
         </div>
     );
 }

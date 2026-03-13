@@ -72,6 +72,7 @@ export interface Appointment {
     appointmentTime: string;
     status: "Scheduled" | "Cancelled";
     rescheduleCount: number;
+    downPaymentAmount: number;
     reschedulable: boolean;
     accepted: boolean;
     notes?: string;

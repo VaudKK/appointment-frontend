@@ -19,7 +19,9 @@ export function Navbar({ storeSlug }: NavbarProps) {
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
                     <Link href={homeHref} className="flex items-center space-x-2">
-                        <span className="text-2xl font-bold text-primary">KwaWakati</span>
+                        <span className="text-2xl font-bold text-primary">
+                            KwaWakati{storeSlug ? ` - ${storeSlug}` : ""}
+                        </span>
                     </Link>
 
                     {/* Desktop Navigation */}

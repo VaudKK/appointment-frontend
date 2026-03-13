@@ -25,13 +25,14 @@ interface BookingFormProps {
 
 const bookingSchema = z.object({
     fullName: z.string().min(2, "Full name must be at least 2 characters"),
-    phoneNumber: z.string().regex(/^(\+254|0)[0-9]{9}$/, "Please enter a valid Kenyan phone number (e.g., 0712345678)"),
+    phoneNumber: z.string().regex(/^\+254[17]\d{8}$/, "Please enter a valid Kenyan phone number (e.g., +254712345678)"),
     notes: z.string()
 })
 
 type BookingFormValues = z.infer<typeof bookingSchema>
 
 export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
+    const phonePrefix = "+254"
     const [showOTP, setShowOTP] = useState(false)
     const [isPhoneVerified, setIsPhoneVerified] = useState(false)
     const [phoneNumber, setPhoneNumber] = useState("")
@@ -44,10 +45,32 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
         resolver: zodResolver(bookingSchema),
         defaultValues: {
             fullName: "",
-            phoneNumber: "",
+            phoneNumber: phonePrefix,
             notes: "",
         },
     })
+
+    const normalizePhoneInput = (value: string) => {
+        const trimmed = value.replace(/\s+/g, "")
+
+        if (trimmed.startsWith(phonePrefix)) {
+            return phonePrefix + trimmed.slice(phonePrefix.length)
+        }
+
+        if (trimmed.startsWith("254")) {
+            return `+${trimmed}`
+        }
+
+        if (trimmed.startsWith("0")) {
+            return phonePrefix + trimmed.slice(1)
+        }
+
+        if (trimmed.startsWith("+")) {
+            return phonePrefix
+        }
+
+        return phonePrefix + trimmed
+    }
 
     const bookingMutation = useMutation({
         mutationFn: (req: CreateAppointmentRequest) => createBooking(req),
@@ -288,7 +311,11 @@ export function BookingForm({ service,timeSlot, storeSlug }: BookingFormProps) {
                         <FormItem>
                             <FormLabel>Phone Number</FormLabel>
                             <FormControl>
-                                <Input placeholder="0712345678 or +254712345678" {...field} />
+                                <Input
+                                    placeholder="7XXXXXXXX or 1XXXXXXXX"
+                                    {...field}
+                                    onChange={(event) => field.onChange(normalizePhoneInput(event.target.value))}
+                                />
                             </FormControl>
                             <FormDescription>We&apos;ll use this to send you the OTP for verification</FormDescription>
                             <FormMessage />
