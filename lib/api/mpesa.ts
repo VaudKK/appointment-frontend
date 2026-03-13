@@ -39,7 +39,7 @@ export async function fetchMpesaCredentials(token: string): Promise<MpesaCredent
 
     enforceAdminAuthOrRedirect(res);
 
-    if (res.status === 404) {
+    if (res.status === 404 || res.status === 204) {
         return normalizeCredentials(null);
     }
 

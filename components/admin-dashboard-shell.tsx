@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LogOut, LayoutDashboard, Calendar, Wrench, Settings } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, Calendar, CalendarDays, Wrench, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { authClient } from "@/lib/auth-client";
@@ -22,6 +22,11 @@ export default function AdminDashboardShell({
             label: "Bookings",
             href: "/admin/dashboard/bookings",
             icon: Calendar,
+        },
+        {
+            label: "Calendar View",
+            href: "/admin/dashboard/calendar",
+            icon: CalendarDays,
         },
         {
             label: "Services",
