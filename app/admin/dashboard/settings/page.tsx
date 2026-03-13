@@ -248,6 +248,25 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
+            <Card className="bg-card border-border">
+                <CardHeader>
+                    <CardTitle className="text-lg">About</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                        KwaWakati is built to help businesses keep bookings running smoothly, from first click to confirmed appointment.
+                    </p>
+                    <p className="text-sm font-medium text-foreground">Built by Kenya for the world.</p>
+                    <p className="text-sm text-muted-foreground">
+                        Need help or want to collaborate? Reach out at{" "}
+                        <a className="text-primary hover:underline" href="mailto:meavesrobert@gmail.com">
+                            meavesrobert@gmail.com
+                        </a>
+                        .
+                    </p>
+                </CardContent>
+            </Card>
+
         </div>
     );
 }
